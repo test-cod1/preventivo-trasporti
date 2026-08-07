@@ -109,9 +109,12 @@ function traduci(m) {
   const s = String(m).toLowerCase();
   if (s.includes('invalid login credentials')) return 'Email o password non corretti.';
   if (s.includes('email not confirmed')) return 'Email non confermata.';
-  if (s.includes('rate limit') || s.includes('too many')) return 'Troppi tentativi, riprova tra qualche minuto.';
-  if (s.includes('should be at least') || s.includes('password')) return 'Password non valida (minimo 6 caratteri).';
+  if (s.includes('rate limit') || s.includes('too many') || s.includes('for security purposes')) return 'Troppi tentativi, riprova tra qualche minuto.';
+  if (s.includes('different from the old') || s.includes('should be different')) return 'La nuova password deve essere diversa da quella attuale.';
+  if (s.includes('at least') && (s.includes('character') || s.includes('caratter'))) return 'La password è troppo corta: usa più caratteri.';
+  if (s.includes('weak') || s.includes('pwned') || s.includes('compromis') || s.includes('leaked')) return 'Password troppo debole o già compromessa in passato: scegline una più robusta.';
+  if (s.includes('auth session missing') || s.includes('session')) return 'Sessione di recupero scaduta: richiedi un nuovo link dal login.';
   if (s.includes('expired') || s.includes('invalid')) return 'Link scaduto o non valido: richiedine uno nuovo.';
-  return m;
+  return m; // fallback: mostro il messaggio originale, così non è mai fuorviante
 }
 function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
