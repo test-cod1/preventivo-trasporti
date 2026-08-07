@@ -1,0 +1,8 @@
+{
+  "name": "preventivo-trasporti",
+  "version": "1.0.0",
+  "description": "Gestionale per preventivi di trasporti sanitari fuori Genova — Croce Rossa Italiana",
+  "scripts": {
+    "dev": "node server.js"
+  }
+}
