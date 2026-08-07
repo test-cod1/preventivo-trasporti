@@ -1,16 +1,19 @@
 import { auth, MODE } from '../data/store.js';
-import { el, clear } from '../lib/ui.js';
+import { el, clear, toast } from '../lib/ui.js';
+
+const BRAND = `<div class="brand"><div class="logo">✚</div><div><b>Preventivi Trasporti</b><span>Croce Rossa Italiana — Genova</span></div></div>`;
 
 export function renderLogin(app, onDone) {
   clear(app);
   const demo = MODE === 'local';
   const wrap = el(`<div class="login-wrap"><div class="login">
-    <div class="brand"><div class="logo">✚</div><div><b>Preventivi Trasporti</b><span>Croce Rossa Italiana — Genova</span></div></div>
+    ${BRAND}
     ${demo ? `<div class="banner ok" style="margin-bottom:18px"><div class="bi">💡</div><div><b>Modalità locale (demo)</b><div class="small">I dati restano su questo dispositivo. Entra con un nome qualsiasi o usa l'accesso rapido.</div></div></div>` : ''}
     <div class="field"><label>Email</label><input type="text" id="email" placeholder="nome@cri.it" autocomplete="username"></div>
     <div class="field"><label>Password</label><input type="password" id="pw" placeholder="••••••••" autocomplete="current-password"></div>
     <button class="btn primary" id="go" style="width:100%;justify-content:center;margin-top:6px">Accedi</button>
     ${demo ? `<button class="btn" id="quick" style="width:100%;justify-content:center;margin-top:10px">Accesso rapido demo</button>` : ''}
+    ${demo ? '' : `<div style="text-align:center;margin-top:14px"><a href="#" id="forgot" style="font-size:13px">Password dimenticata?</a></div>`}
     <div id="err" style="color:var(--danger);font-size:13px;margin-top:12px;text-align:center"></div>
   </div></div>`);
   app.appendChild(wrap);
@@ -19,10 +22,96 @@ export function renderLogin(app, onDone) {
   async function doLogin(email, pw) {
     err.textContent = '';
     try { await auth.signIn(email, pw); onDone(); }
-    catch (e) { err.textContent = e.message || 'Accesso non riuscito'; }
+    catch (e) { err.textContent = traduci(e.message) || 'Accesso non riuscito'; }
   }
   wrap.querySelector('#go').addEventListener('click', () =>
     doLogin(wrap.querySelector('#email').value.trim(), wrap.querySelector('#pw').value));
   wrap.querySelector('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') wrap.querySelector('#go').click(); });
   if (demo) wrap.querySelector('#quick').addEventListener('click', () => doLogin('demo@cri.it', 'demo'));
+  const forgot = wrap.querySelector('#forgot');
+  if (forgot) forgot.addEventListener('click', (e) => {
+    e.preventDefault();
+    renderRichiestaReset(app, onDone, wrap.querySelector('#email').value.trim());
+  });
 }
+
+// ---- Richiesta reset: inserisci email -> invio link ----
+function renderRichiestaReset(app, onDone, emailPrecompilata = '') {
+  clear(app);
+  const wrap = el(`<div class="login-wrap"><div class="login">
+    ${BRAND}
+    <div class="banner info" style="margin-bottom:18px"><div class="bi">🔑</div><div><b>Recupero password</b><div class="small">Inserisci la tua email: ti invieremo un link per impostare una nuova password.</div></div></div>
+    <div class="field"><label>Email</label><input type="text" id="email" placeholder="nome@cri.it" autocomplete="username" value="${esc(emailPrecompilata)}"></div>
+    <button class="btn primary" id="send" style="width:100%;justify-content:center;margin-top:6px">Invia link di recupero</button>
+    <button class="btn" id="back" style="width:100%;justify-content:center;margin-top:10px">← Torna al login</button>
+    <div id="msg" style="font-size:13px;margin-top:12px;text-align:center"></div>
+  </div></div>`);
+  app.appendChild(wrap);
+
+  const msg = wrap.querySelector('#msg');
+  wrap.querySelector('#back').addEventListener('click', () => renderLogin(app, onDone));
+  wrap.querySelector('#send').addEventListener('click', async () => {
+    const email = wrap.querySelector('#email').value.trim();
+    msg.style.color = 'var(--danger)';
+    if (!email) { msg.textContent = 'Inserisci la tua email.'; return; }
+    const btn = wrap.querySelector('#send'); const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Invio…';
+    try {
+      await auth.resetPassword(email);
+      msg.style.color = 'var(--ok)';
+      msg.innerHTML = '✅ Se l\'email è registrata, riceverai a breve un link per reimpostare la password. Controlla anche lo spam.';
+    } catch (e) {
+      msg.textContent = traduci(e.message) || 'Invio non riuscito.';
+    } finally { btn.disabled = false; btn.innerHTML = old; }
+  });
+  wrap.querySelector('#email').addEventListener('keydown', e => { if (e.key === 'Enter') wrap.querySelector('#send').click(); });
+}
+
+// ---- Schermata "imposta nuova password" (dopo il click sul link email) ----
+export function renderResetPassword(app, onDone) {
+  clear(app);
+  const wrap = el(`<div class="login-wrap"><div class="login">
+    ${BRAND}
+    <div class="banner ok" style="margin-bottom:18px"><div class="bi">🔒</div><div><b>Imposta una nuova password</b><div class="small">Scegli la nuova password per il tuo account.</div></div></div>
+    <div class="field"><label>Nuova password</label><input type="password" id="pw1" placeholder="almeno 6 caratteri" autocomplete="new-password"></div>
+    <div class="field"><label>Conferma password</label><input type="password" id="pw2" placeholder="ripeti la password" autocomplete="new-password"></div>
+    <button class="btn primary" id="save" style="width:100%;justify-content:center;margin-top:6px">Salva nuova password</button>
+    <div id="err" style="color:var(--danger);font-size:13px;margin-top:12px;text-align:center"></div>
+  </div></div>`);
+  app.appendChild(wrap);
+
+  const err = wrap.querySelector('#err');
+  wrap.querySelector('#save').addEventListener('click', async () => {
+    err.textContent = '';
+    const pw1 = wrap.querySelector('#pw1').value;
+    const pw2 = wrap.querySelector('#pw2').value;
+    if (pw1.length < 6) { err.textContent = 'La password deve avere almeno 6 caratteri.'; return; }
+    if (pw1 !== pw2) { err.textContent = 'Le due password non coincidono.'; return; }
+    const btn = wrap.querySelector('#save'); const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvataggio…';
+    try {
+      await auth.updatePassword(pw1);
+      // pulisce i token dall'URL e prosegue nell'app (la sessione è già attiva)
+      history.replaceState(null, '', location.pathname + '#/preventivi');
+      toast('Password aggiornata', 'ok');
+      onDone();
+    } catch (e) {
+      err.textContent = traduci(e.message) || 'Aggiornamento non riuscito. Il link potrebbe essere scaduto: richiedine uno nuovo.';
+      btn.disabled = false; btn.innerHTML = old;
+    }
+  });
+  wrap.querySelector('#pw2').addEventListener('keydown', e => { if (e.key === 'Enter') wrap.querySelector('#save').click(); });
+}
+
+// piccola traduzione dei messaggi Supabase più comuni
+function traduci(m) {
+  if (!m) return '';
+  const s = String(m).toLowerCase();
+  if (s.includes('invalid login credentials')) return 'Email o password non corretti.';
+  if (s.includes('email not confirmed')) return 'Email non confermata.';
+  if (s.includes('rate limit') || s.includes('too many')) return 'Troppi tentativi, riprova tra qualche minuto.';
+  if (s.includes('should be at least') || s.includes('password')) return 'Password non valida (minimo 6 caratteri).';
+  if (s.includes('expired') || s.includes('invalid')) return 'Link scaduto o non valido: richiedine uno nuovo.';
+  return m;
+}
+function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

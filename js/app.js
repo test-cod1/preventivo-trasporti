@@ -1,6 +1,6 @@
 import { initStore, auth, impostazioni, MODE } from './data/store.js';
 import { el, clear } from './lib/ui.js';
-import { renderLogin } from './views/auth.js';
+import { renderLogin, renderResetPassword } from './views/auth.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderPreventivo } from './views/preventivo.js';
 import { renderImpostazioni } from './views/impostazioni.js';
@@ -16,8 +16,15 @@ const NAV = [
 ];
 
 async function boot() {
+  // Il link di recupero password torna con "type=recovery" nell'hash:
+  // lo rilevo PRIMA che il client Supabase lo consumi e pulisca l'URL.
+  const isRecovery = location.hash.includes('type=recovery');
   await initStore();
   currentUser = await auth.current();
+  if (isRecovery) {
+    renderResetPassword(app, async () => { currentUser = await auth.current(); await startApp(); });
+    return;
+  }
   if (!currentUser) {
     renderLogin(app, async () => { currentUser = await auth.current(); await startApp(); });
     return;

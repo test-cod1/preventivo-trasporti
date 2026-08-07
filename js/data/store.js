@@ -69,6 +69,22 @@ export const auth = {
     if (MODE === 'local') { localStorage.removeItem('pt-user'); return; }
     const sb = await sbClient(); await sb.auth.signOut();
   },
+  // Invia l'email col link per reimpostare la password.
+  async resetPassword(email) {
+    if (MODE === 'local') throw new Error('Recupero password non disponibile in modalità locale.');
+    const sb = await sbClient();
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: location.origin + location.pathname,
+    });
+    if (error) throw error;
+  },
+  // Imposta la nuova password (valida solo dentro la sessione di recupero).
+  async updatePassword(nuovaPassword) {
+    if (MODE === 'local') throw new Error('Non disponibile in modalità locale.');
+    const sb = await sbClient();
+    const { error } = await sb.auth.updateUser({ password: nuovaPassword });
+    if (error) throw error;
+  },
 };
 
 // ---------------------------------------------------------------
