@@ -228,19 +228,19 @@ export async function renderPreventivo(view, id, ctx) {
       <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn sm" id="add-tappa" type="button">➕ Aggiungi tappa</button>
         <label class="chk"><input type="checkbox" id="ar" ${prev.andata_ritorno?'checked':''}> Andata e ritorno (rientro alla sede)</label>
-        <button class="btn primary sm" id="calc-km" type="button">🧭 Calcola km e percorso</button>
+        <button class="btn sm" id="calc-km" type="button">🧭 Ricalcola percorso</button>
       </div>
       <div class="form-row" style="margin-top:12px">
         <div class="field"><label>Km totali</label><input type="number" min="0" id="kmTotali" value="${prev.input.kmTotali||''}">
-          <div class="hint" id="km-hint">Puoi calcolarli automaticamente o inserirli a mano.</div></div>
+          <div class="hint" id="km-hint">Calcolati in automatico dalla destinazione. Puoi correggerli a mano.</div></div>
         <div class="field"></div>
       </div>
     </div>`);
     itinBody.appendChild(controls);
 
     controls.querySelector('#add-tappa').addEventListener('click', () => { prev.tappe.push(emptyTappa()); renderItinerario(); });
-    controls.querySelector('#ar').addEventListener('change', e => { prev.andata_ritorno = e.target.checked; });
-    controls.querySelector('#calc-km').addEventListener('click', calcolaKm);
+    controls.querySelector('#ar').addEventListener('change', e => { prev.andata_ritorno = e.target.checked; autoCalcolaKm(); });
+    controls.querySelector('#calc-km').addEventListener('click', () => calcolaKm());
     const kmInput = controls.querySelector('#kmTotali');
     kmInput.addEventListener('input', e => {
       prev.input.kmTotali = num(e.target.value); prev.km_auto = false;
@@ -287,12 +287,19 @@ export async function renderPreventivo(view, id, ctx) {
     }
     updateCarbHint();
     recalc();
+    autoCalcolaKm(); // km automatici appena c'è la destinazione
   }
 
-  async function calcolaKm() {
+  // Ricalcola i km/percorso appena c'è una destinazione con coordinate.
+  function autoCalcolaKm() {
+    const hasCoords = prev.tappe.some(t => Number.isFinite(t.lon) && Number.isFinite(t.lat));
+    if (hasCoords) calcolaKm({ auto: true });
+  }
+
+  async function calcolaKm({ auto = false } = {}) {
     const btn = view.querySelector('#calc-km');
     const stops = prev.tappe.filter(t => Number.isFinite(t.lon) && Number.isFinite(t.lat));
-    if (!stops.length) { toast('Seleziona almeno una destinazione dall\'elenco suggerimenti.', 'err'); return; }
+    if (!stops.length) { if (!auto) toast('Seleziona almeno una destinazione dall\'elenco suggerimenti.', 'err'); return; }
     const coords = [[CONFIG.partenza.lon, CONFIG.partenza.lat], ...stops.map(t => [t.lon, t.lat])];
     if (prev.andata_ritorno) coords.push([CONFIG.partenza.lon, CONFIG.partenza.lat]);
     const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Calcolo…';
@@ -308,7 +315,7 @@ export async function renderPreventivo(view, id, ctx) {
     } catch (e) {
       const msg = e instanceof RoutingError ? e.message : (e.message || 'Errore nel calcolo');
       view.querySelector('#km-hint').innerHTML = `<span style="color:var(--danger)">⚠️ ${esc(msg)} — inserisci i km a mano.</span>`;
-      toast(msg, 'err');
+      if (!auto) toast(msg, 'err');
     } finally { btn.disabled = false; btn.innerHTML = old; }
   }
 
