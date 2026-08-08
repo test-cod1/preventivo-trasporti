@@ -30,10 +30,6 @@ export const DEFAULT_IMPOSTAZIONI = {
   medicoTariffaOraria: 50,      // €/ora indicativa per il medico (modificabile)
   infermiereTariffaOraria: 30,  // €/ora indicativa per l'infermiere (modificabile)
 
-  // AdBlue (solo mezzi diesel): stima come % dei litri di gasolio consumati.
-  adBluePerc: 4,         // % del volume di gasolio
-  adBluePrezzo: 1.00,    // € / litro AdBlue
-
   fuelDataDate: FUEL_DATA_DATE,
 };
 
@@ -66,9 +62,6 @@ export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
     infermiere: 0,          // totale infermiere (auto = ore x tariffa oraria, sempre modificabile)
     estero: false,          // viaggio fuori Italia -> abilita i pedaggi/vignette
     pedaggi: 0,             // pedaggi/vignette esteri (0 e nascosti in Italia)
-    adBlueOn: false,
-    adBluePrezzo: imp.adBluePrezzo,
-    adBluePerc: imp.adBluePerc,
     materiale: [],                 // [{ desc, importo }]
     tariffaKm: 0,                  // azzerata: si imposta con i preset o a mano
   };
@@ -85,11 +78,7 @@ export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {
   // --- Carburante ---
   const litri = consumo > 0 ? km / consumo : 0;
   const carburante = litri * n(input.prezzoCarburante);
-
-  // --- AdBlue (solo diesel, se attivo) ---
   const isDiesel = (input.alimentazione || mezzo.alimentazione) === 'diesel';
-  const litriAdBlue = input.adBlueOn && isDiesel ? litri * (n(input.adBluePerc) / 100) : 0;
-  const adBlue = litriAdBlue * n(input.adBluePrezzo);
 
   // --- Pasti (sezione disattivabile: conta solo se pastiOn) ---
   const pasti = input.pastiOn ? n(input.persone) * n(input.pastiPersona) * n(input.pastoCosto) : 0;
@@ -109,7 +98,7 @@ export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {
   const materiale = (input.materiale || []).reduce((s, r) => s + n(r.importo), 0);
 
   // --- SPESA REALE (costo vivo) ---
-  const spesaReale = carburante + adBlue + pasti + pernottamento + sanitari + pedaggi + materiale;
+  const spesaReale = carburante + pasti + pernottamento + sanitari + pedaggi + materiale;
 
   // --- ADDEBITO (km × tariffa + tutte le voci attive) ---
   const addebitoKm = km * n(input.tariffaKm);
@@ -119,7 +108,7 @@ export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {
   const margine = addebito - spesaReale;
 
   return {
-    litri, carburante, adBlue, litriAdBlue,
+    litri, carburante,
     pasti, pernottamento, pernCamere, pernPersone,
     medico, infermiere, sanitari, pedaggi, materiale,
     spesaReale,

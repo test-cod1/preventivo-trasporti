@@ -46,7 +46,8 @@ export async function renderPreventivo(view, id, ctx) {
   // I flag UI e la partenza vivono dentro input (jsonb) per persistere senza colonne dedicate.
   let prezzoAuto = prev.input._prezzoAuto !== false; // di default il prezzo segue il Paese
   let pedaggioAuto = prev.input._pedaggioAuto !== false; // stima pedaggi estero attiva finché non la modifichi a mano
-  let esteroAuto = prev.input._esteroAuto !== false;     // il flag "estero" segue la destinazione finché non lo forzi a mano
+  // "estero" non è più un interruttore manuale: dipende SEMPRE dalla destinazione
+  // (aggiornato in onTappeChanged -> updateEstero()).
   let medicoOreAuto = prev.input._medicoOreAuto !== false; // le ore sanitari seguono la durata del percorso finché non le tocchi
   let medicoTotAuto = prev.input._medicoTotAuto !== false;         // il totale medico = ore × tariffa finché non lo tocchi
   let infermiereTotAuto = prev.input._infermiereTotAuto !== false; // il totale infermiere = ore × tariffa finché non lo tocchi
@@ -148,31 +149,21 @@ export async function renderPreventivo(view, id, ctx) {
     </div>`);
   main.appendChild(cMedico);
 
-  // ================= SEZIONE 6b: ALTRE VOCI =================
-  const cExtra = card('Altre voci', `
-    <div class="form-row three">
-      <div class="field"><label>&nbsp;</label>
-        <label class="chk"><input type="checkbox" id="adblue" ${prev.input.adBlueOn?'checked':''}> AdBlue (stima su gasolio)</label>
-      </div>
-      <div class="field"><label>&nbsp;</label>
-        <label class="chk"><input type="checkbox" id="estero" ${prev.input.estero?'checked':''}> Viaggio all'estero (pedaggi/vignette)</label>
-      </div>
-      <div class="field"></div>
-    </div>
-    <div id="adblue-row" class="form-row" style="${prev.input.adBlueOn?'':'display:none'}">
-      <div class="field"><label>AdBlue: % del gasolio</label><input type="number" min="0" step="0.5" id="adBluePerc" value="${prev.input.adBluePerc}"></div>
-      <div class="field"><label>AdBlue: €/l</label><input type="number" min="0" step="0.01" id="adBluePrezzo" value="${prev.input.adBluePrezzo}"></div>
-    </div>
-    <div id="estero-row" class="form-row" style="${prev.input.estero?'':'display:none'}">
+  // ================= SEZIONE 6b: PEDAGGI ESTERO (automatica, no interruttore manuale) =================
+  const cPedaggi = card('Pedaggi estero', `
+    <div class="form-row">
       <div class="field"><label>Pedaggi / vignette estero (€) <span class="badge-auto" id="badge-pedaggio">stima</span></label>
         <input type="number" min="0" step="0.5" id="pedaggi" value="${prev.input.pedaggi}">
         <div class="hint" id="pedaggio-hint"></div></div>
       <div class="field"></div>
-    </div>
-    <label class="section-t" style="margin-top:6px">Materiale di consumo</label>
+    </div>`);
+  main.appendChild(cPedaggi);
+
+  // ================= SEZIONE 6c: MATERIALE DI CONSUMO =================
+  const cMateriale = card('Materiale di consumo', `
     <div id="materiale"></div>
     <button class="btn sm" id="add-mat" type="button">➕ Aggiungi voce</button>`);
-  main.appendChild(cExtra);
+  main.appendChild(cMateriale);
   renderMateriale();
 
   const cNote = card('Note', `<textarea id="note" rows="3" placeholder="Note per il preventivo (visibili in stampa)…">${esc(prev.note || '')}</textarea>`);
@@ -256,19 +247,6 @@ export async function renderPreventivo(view, id, ctx) {
     setRuoloAbilitato('infermiere', e.target.checked);
     recalc();
   });
-  bindNum('#adBluePerc', 'adBluePerc');
-  bindNum('#adBluePrezzo', 'adBluePrezzo');
-
-  $('#adblue').addEventListener('change', e => {
-    prev.input.adBlueOn = e.target.checked;
-    $('#adblue-row').style.display = e.target.checked ? '' : 'none';
-    recalc();
-  });
-  $('#estero').addEventListener('change', e => {
-    esteroAuto = false; // scelta manuale: non seguire più la destinazione
-    setEstero(e.target.checked);
-    recalc();
-  });
   $('#add-mat').addEventListener('click', () => { prev.input.materiale.push({ desc: '', importo: 0 }); renderMateriale(); recalc(); });
 
   head.querySelector('#btn-save').addEventListener('click', save);
@@ -276,7 +254,7 @@ export async function renderPreventivo(view, id, ctx) {
 
   updateMezzoHint();
   updateCarbHint();
-  initEsteroPedaggio();
+  updateEstero();
   initMedico();
   initSezioni();
   recalc();
@@ -404,8 +382,8 @@ export async function renderPreventivo(view, id, ctx) {
       if (info) { prev.paese_dest = info.iso2; prev.paese_dest_nome = info.nome; }
       else { prev.paese_dest = dest.iso2 || null; prev.paese_dest_nome = dest.paese || null; }
       if (prezzoAuto) refillPrezzo();
-      if (esteroAuto) setEstero(!!(prev.paese_dest && prev.paese_dest !== 'IT'));
     }
+    updateEstero(); // dipende solo dalla destinazione: aggiornata ad ogni cambio
     updateCarbHint();
     recalc();
     autoCalcolaKm(); // km automatici appena c'è la destinazione
@@ -481,7 +459,6 @@ export async function renderPreventivo(view, id, ctx) {
     const line = (lbl, val, strong) => `<div class="b-row ${strong ? 'strong' : ''}"><span class="lbl">${lbl}</span><span class="money">${fmtEuro(val)}</span></div>`;
     const bd = el(`<div class="tot-box"><div class="card-b breakdown">
       ${line(`Carburante (${fmtNum(r.litri,1)} l)`, r.carburante)}
-      ${r.adBlue > 0 ? line(`AdBlue (${fmtNum(r.litriAdBlue,1)} l)`, r.adBlue) : ''}
       ${line('Pasti', r.pasti)}
       ${r.pernottamento > 0 ? line('Pernottamento', r.pernottamento) : ''}
       ${r.pedaggi > 0 ? line('Pedaggi/vignette', r.pedaggi) : ''}
@@ -518,7 +495,7 @@ export async function renderPreventivo(view, id, ctx) {
       km_totali: prev.km_totali,
       paese_dest: prev.paese_dest ?? null,
       paese_dest_nome: prev.paese_dest_nome ?? null,
-      input: { ...prev.input, partenza: prev.partenza, _prezzoAuto: prezzoAuto, _pedaggioAuto: pedaggioAuto, _esteroAuto: esteroAuto, _medicoOreAuto: medicoOreAuto, _medicoTotAuto: medicoTotAuto, _infermiereTotAuto: infermiereTotAuto },
+      input: { ...prev.input, partenza: prev.partenza, _prezzoAuto: prezzoAuto, _pedaggioAuto: pedaggioAuto, _medicoOreAuto: medicoOreAuto, _medicoTotAuto: medicoTotAuto, _infermiereTotAuto: infermiereTotAuto },
       risultato: prev.risultato,
     };
     if (prev.id) rec.id = prev.id;
@@ -593,21 +570,25 @@ export async function renderPreventivo(view, id, ctx) {
     cPern.style.display = prev.input.pernottamentoOn ? '' : 'none';
     cMedico.style.display = prev.input.sanitariOn ? '' : 'none';
   }
-  // Attiva/disattiva la sezione pedaggi in base al viaggio estero.
-  function setEstero(on) {
+  // La sezione "Pedaggi estero" NON ha un interruttore manuale: si attiva
+  // unicamente quando la destinazione è fuori dall'Italia (prev.paese_dest).
+  // Chiamata sia all'avvio sia ogni volta che cambia la destinazione.
+  function updateEstero() {
+    const on = !!(prev.paese_dest && prev.paese_dest !== 'IT');
     prev.input.estero = on;
-    const cb = view.querySelector('#estero'); if (cb) cb.checked = on;
-    const row = view.querySelector('#estero-row'); if (row) row.style.display = on ? '' : 'none';
-    if (on) { if (pedaggioAuto) refillPedaggio(); }
-    else { prev.input.pedaggi = 0; const p = view.querySelector('#pedaggi'); if (p) p.value = ''; }
-    renderRibalta();
-  }
-  function initEsteroPedaggio() {
-    const row = view.querySelector('#estero-row'); if (row) row.style.display = prev.input.estero ? '' : 'none';
-    if (!prev.input.estero) return;
-    if (pedaggioAuto) { refillPedaggio(); return; }
-    const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = 'none';
-    const h = view.querySelector('#pedaggio-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    cPedaggi.style.display = on ? '' : 'none';
+    if (!on) {
+      prev.input.pedaggi = 0;
+      const p = view.querySelector('#pedaggi'); if (p) p.value = '';
+      return;
+    }
+    if (cPedaggi.tagName === 'DETAILS') cPedaggi.open = true;
+    if (pedaggioAuto) {
+      refillPedaggio();
+    } else {
+      const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = 'none';
+      const h = view.querySelector('#pedaggio-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    }
   }
   // Ore stimate dalla durata del percorso (arrotondate alla mezz'ora), condivise
   // dai due ruoli sanitari (fanno lo stesso viaggio).

@@ -10,7 +10,8 @@ Ricalca e amplia la logica dello storico foglio Excel "conto trasferte":
   nazionali europee precaricate al 3/8/2026), sempre modificabile a mano.
 - **Doppio totale affiancato**: *spesa reale* (costo vivo) e *addebito* (km × tariffa
   + voci a rimborso), con **margine** in evidenza.
-- Voci complete: carburante, AdBlue, pasti, pernottamento, pedaggi, medico al seguito,
+- Voci complete: carburante, pasti, pernottamento, sanitari (medico/infermiere),
+  pedaggi/vignette estero (attivi automaticamente solo per destinazioni fuori Italia),
   materiale di consumo (orinale, DPI…).
 - **Storico preventivi** con stati (bozza / inviato / confermato / annullato),
   ricerca e **stampa/PDF** del preventivo.

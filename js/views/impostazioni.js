@@ -54,12 +54,8 @@ export async function renderImpostazioni(view, ctx) {
       <div class="field"><label>&nbsp;</label><div class="hint">La tariffa resta modificabile in ogni singolo preventivo.</div></div>
     </div>
     <div class="form-row three">
-      <div class="field"><label>AdBlue: % del gasolio</label><input type="number" step="0.5" id="adBluePerc" value="${imp.adBluePerc}"></div>
-      <div class="field"><label>AdBlue: €/l</label><input type="number" step="0.01" id="adBluePrezzo" value="${imp.adBluePrezzo}"></div>
       <div class="field"><label>Pedaggi estero (€/km)</label><input type="number" step="0.01" id="pedaggiEsteroKm" value="${imp.pedaggiEsteroKm}">
-        <div class="hint">In Italia la CRI è esente: i pedaggi si applicano solo ai viaggi all'estero.</div></div>
-    </div>
-    <div class="form-row three">
+        <div class="hint">In Italia la CRI è esente: i pedaggi si applicano solo ai viaggi all'estero (attivo automaticamente in base alla destinazione).</div></div>
       <div class="field"><label>Medico: tariffa oraria (€/h)</label><input type="number" step="0.5" id="medicoTariffaOraria" value="${imp.medicoTariffaOraria}">
         <div class="hint">Default usato nel preventivo: totale = ore stimate × tariffa, sempre modificabile.</div></div>
       <div class="field"><label>Infermiere: tariffa oraria (€/h)</label><input type="number" step="0.5" id="infermiereTariffaOraria" value="${imp.infermiereTariffaOraria}">
@@ -68,8 +64,6 @@ export async function renderImpostazioni(view, ctx) {
   view.appendChild(cPar);
   cPar.querySelector('#pastoCosto').addEventListener('input', e => imp.pastoCosto = Number(e.target.value) || 0);
   cPar.querySelector('#tariffaKm').addEventListener('input', e => imp.tariffaKm = Number(e.target.value) || 0);
-  cPar.querySelector('#adBluePerc').addEventListener('input', e => imp.adBluePerc = Number(e.target.value) || 0);
-  cPar.querySelector('#adBluePrezzo').addEventListener('input', e => imp.adBluePrezzo = Number(e.target.value) || 0);
   cPar.querySelector('#pedaggiEsteroKm').addEventListener('input', e => imp.pedaggiEsteroKm = Number(e.target.value) || 0);
   cPar.querySelector('#medicoTariffaOraria').addEventListener('input', e => imp.medicoTariffaOraria = Number(e.target.value) || 0);
   cPar.querySelector('#infermiereTariffaOraria').addEventListener('input', e => imp.infermiereTariffaOraria = Number(e.target.value) || 0);
