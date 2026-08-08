@@ -57,8 +57,8 @@ export async function renderPreventivo(view, id, ctx) {
   const main = editor.querySelector('.col-main');
   const summaryCol = editor.querySelector('.summary');
 
-  // ================= SEZIONE 2: ITINERARIO =================
-  const cItin = card('Itinerario e chilometri', '');
+  // ================= SEZIONE 2: ITINERARIO (sempre visibile) =================
+  const cItin = card('Itinerario e chilometri', '', { collapsible: false });
   main.appendChild(cItin);
   const itinBody = cItin.querySelector('.card-b');
   renderItinerario();
@@ -453,8 +453,17 @@ export async function renderPreventivo(view, id, ctx) {
   }
 
   // ---------------- helpers locali ----------------
-  function card(title, bodyHtml) {
-    return el(`<div class="card"><div class="card-h">${esc(title)}</div><div class="card-b">${bodyHtml}</div></div>`);
+  // collapsible=false -> card normale sempre visibile (solo la prima sezione).
+  // Le altre sono <details> nativi: si aprono/chiudono cliccando il titolo,
+  // senza bisogno di JS di gestione (il contenuto resta comunque nel DOM).
+  function card(title, bodyHtml, { collapsible = true, open = false } = {}) {
+    if (!collapsible) {
+      return el(`<div class="card"><div class="card-h">${esc(title)}</div><div class="card-b">${bodyHtml}</div></div>`);
+    }
+    return el(`<details class="card collapsible"${open ? ' open' : ''}>
+      <summary class="card-h">${esc(title)}<span class="chev">▾</span></summary>
+      <div class="card-b">${bodyHtml}</div>
+    </details>`);
   }
   function bind(sel, setter, kind) {
     const e = view.querySelector(sel); if (!e) return;

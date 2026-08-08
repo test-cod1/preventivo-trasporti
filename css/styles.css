@@ -72,6 +72,15 @@ a{color:var(--cri-red);text-decoration:none}
 .card .card-h{padding:15px 18px;border-bottom:1px solid var(--line);font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .card .card-b{padding:18px}
 
+/* ---------- Card collassabile (<details>/<summary>) ---------- */
+.card.collapsible{padding:0;overflow:hidden}
+.card.collapsible > summary.card-h{cursor:pointer;list-style:none;user-select:none;border-bottom:none}
+.card.collapsible > summary.card-h::-webkit-details-marker{display:none}
+.card.collapsible > summary.card-h .chev{margin-left:auto;color:var(--ink-soft);transition:transform .15s;font-size:13px}
+.card.collapsible[open] > summary.card-h{border-bottom:1px solid var(--line)}
+.card.collapsible[open] > summary.card-h .chev{transform:rotate(180deg)}
+.card.collapsible > summary.card-h:hover{background:var(--bg)}
+
 .chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--bg);color:var(--ink-soft);border:1px solid var(--line)}
 .chip.red{background:var(--cri-red-soft);color:var(--cri-red-dark);border-color:transparent}
 .chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
