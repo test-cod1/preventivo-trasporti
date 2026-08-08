@@ -26,7 +26,7 @@ export const DEFAULT_IMPOSTAZIONI = {
 
   pastoCosto: 25,        // € a pasto a persona (Excel: 25)
   tariffaKm: 1.20,       // € / km per l'addebito (Excel usava 1,15 e 1,20)
-  medicoTariffaOraria: 20, // €/ora indicativa per il medico al seguito (modificabile)
+  medicoTariffaOraria: 50, // €/ora indicativa per il medico al seguito (modificabile)
 
   // AdBlue (solo mezzi diesel): stima come % dei litri di gasolio consumati.
   adBluePerc: 4,         // % del volume di gasolio
