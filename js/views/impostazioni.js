@@ -17,36 +17,33 @@ export async function renderImpostazioni(view, ctx) {
   const cMezzi = card('Parco mezzi e consumi', '<div id="mezzi"></div><button class="btn sm" id="add-mezzo" type="button">➕ Aggiungi mezzo</button>');
   view.appendChild(cMezzi);
   const mezziBox = cMezzi.querySelector('#mezzi');
-  const COLS = 'grid-template-columns:1fr 120px 80px 90px 34px';
+  const COLS = 'grid-template-columns:1fr 130px 90px 34px';
   function drawMezzi() {
     clear(mezziBox);
     mezziBox.appendChild(el(`<div class="matrow" style="${COLS};font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em">
-      <div>Nome</div><div>Alimentazione</div><div>km/l</div><div>€/km ped.</div><div></div></div>`));
+      <div>Nome</div><div>Alimentazione</div><div>km/l</div><div></div></div>`));
     imp.mezzi.forEach((m, i) => {
       const r = el(`<div class="matrow" style="${COLS}">
         <input type="text" value="${esc(m.nome)}">
         <select><option value="diesel" ${m.alimentazione==='diesel'?'selected':''}>Gasolio</option><option value="benzina" ${m.alimentazione==='benzina'?'selected':''}>Benzina</option></select>
         <input type="number" step="0.1" value="${m.consumo}">
-        <input type="number" step="0.01" value="${m.pedaggioKm != null ? m.pedaggioKm : ''}" placeholder="0,12">
         <button class="rm btn ghost sm" type="button">✕</button>
       </div>`);
-      const [nome, cons, ped] = r.querySelectorAll('input');
+      const [nome, cons] = r.querySelectorAll('input');
       const alim = r.querySelector('select');
       nome.addEventListener('input', () => m.nome = nome.value);
       alim.addEventListener('change', () => m.alimentazione = alim.value);
       cons.addEventListener('input', () => m.consumo = Number(cons.value) || 0);
-      ped.addEventListener('input', () => m.pedaggioKm = ped.value === '' ? null : (Number(ped.value) || 0));
       r.querySelector('.rm').addEventListener('click', () => {
         if (imp.mezzi.length <= 1) { toast('Serve almeno un mezzo', 'err'); return; }
         imp.mezzi.splice(i, 1); drawMezzi();
       });
       mezziBox.appendChild(r);
     });
-    mezziBox.appendChild(el(`<div class="hint" style="margin-top:2px">€/km pedaggio: stima autostradale usata per precompilare i pedaggi (classe B ~0,12 · classe A ~0,08). Vuoto = usa il valore di ripiego.</div>`));
   }
   drawMezzi();
   cMezzi.querySelector('#add-mezzo').addEventListener('click', () => {
-    imp.mezzi.push({ id: 'm' + Date.now(), nome: 'Nuovo mezzo', alimentazione: 'diesel', consumo: 10, pedaggioKm: 0.12 }); drawMezzi();
+    imp.mezzi.push({ id: 'm' + Date.now(), nome: 'Nuovo mezzo', alimentazione: 'diesel', consumo: 10 }); drawMezzi();
   });
 
   // ---------- Parametri economici ----------
@@ -59,13 +56,14 @@ export async function renderImpostazioni(view, ctx) {
     <div class="form-row three">
       <div class="field"><label>AdBlue: % del gasolio</label><input type="number" step="0.5" id="adBluePerc" value="${imp.adBluePerc}"></div>
       <div class="field"><label>AdBlue: €/l</label><input type="number" step="0.01" id="adBluePrezzo" value="${imp.adBluePrezzo}"></div>
-      <div class="field"><label>&nbsp;</label></div>
+      <div class="field"><label>Pedaggi estero (€/km)</label><input type="number" step="0.01" id="pedaggiEsteroKm" value="${imp.pedaggiEsteroKm}">
+        <div class="hint">In Italia la CRI è esente: i pedaggi si applicano solo ai viaggi all'estero.</div></div>
     </div>
     <label class="section-t" style="margin-top:4px">Voci ribaltate sull'addebito (default)</label>
     <div id="ribalta" style="display:flex;flex-wrap:wrap;gap:6px 20px"></div>`);
   view.appendChild(cPar);
   const ribBox = cPar.querySelector('#ribalta');
-  const voci = [['pasti','Pasti'],['pernottamento','Pernottamento'],['pedaggi','Pedaggi'],['medico','Medico'],['materiale','Materiale']];
+  const voci = [['pasti','Pasti'],['pernottamento','Pernottamento'],['pedaggi','Pedaggi/vignette (estero)'],['medico','Medico'],['materiale','Materiale']];
   for (const [k, lbl] of voci) {
     const c = el(`<label class="chk"><input type="checkbox" ${imp.ribalta[k]?'checked':''}> ${lbl}</label>`);
     c.querySelector('input').addEventListener('change', e => imp.ribalta[k] = e.target.checked);
@@ -75,6 +73,7 @@ export async function renderImpostazioni(view, ctx) {
   cPar.querySelector('#tariffaKm').addEventListener('input', e => imp.tariffaKm = Number(e.target.value) || 0);
   cPar.querySelector('#adBluePerc').addEventListener('input', e => imp.adBluePerc = Number(e.target.value) || 0);
   cPar.querySelector('#adBluePrezzo').addEventListener('input', e => imp.adBluePrezzo = Number(e.target.value) || 0);
+  cPar.querySelector('#pedaggiEsteroKm').addEventListener('input', e => imp.pedaggiEsteroKm = Number(e.target.value) || 0);
 
   // ---------- Prezzi carburante ----------
   const cFuel = card(`Prezzi carburante di riferimento`, `

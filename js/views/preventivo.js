@@ -29,7 +29,8 @@ export async function renderPreventivo(view, id, ctx) {
     prev.input.prezzoCarburante = prezzoRiferimento('IT', prev.input.alimentazione, tabella(imp));
   }
   let prezzoAuto = prev._prezzoAuto !== false; // di default il prezzo segue il Paese
-  let pedaggioAuto = prev._pedaggioAuto !== false; // di default i pedaggi sono stimati dai km
+  let pedaggioAuto = prev._pedaggioAuto !== false; // stima pedaggi estero attiva finché non la modifichi a mano
+  let esteroAuto = prev._esteroAuto !== false;     // il flag "estero" segue la destinazione finché non lo forzi a mano
 
   // ---- layout ----
   const head = el(`<div class="page-head">
@@ -113,17 +114,23 @@ export async function renderPreventivo(view, id, ctx) {
   // ================= SEZIONE 6: ALTRE VOCI =================
   const cExtra = card('Altre voci', `
     <div class="form-row three">
-      <div class="field"><label>Pedaggi autostradali (€) <span class="badge-auto" id="badge-pedaggio">stima</span></label>
-        <input type="number" min="0" step="0.5" id="pedaggi" value="${prev.input.pedaggi}">
-        <div class="hint" id="pedaggio-hint"></div></div>
       <div class="field"><label>Medico al seguito (€)</label><input type="number" min="0" step="1" id="medico" value="${prev.input.medico}"></div>
       <div class="field"><label>&nbsp;</label>
         <label class="chk"><input type="checkbox" id="adblue" ${prev.input.adBlueOn?'checked':''}> AdBlue (stima su gasolio)</label>
+      </div>
+      <div class="field"><label>&nbsp;</label>
+        <label class="chk"><input type="checkbox" id="estero" ${prev.input.estero?'checked':''}> Viaggio all'estero (pedaggi/vignette)</label>
       </div>
     </div>
     <div id="adblue-row" class="form-row" style="${prev.input.adBlueOn?'':'display:none'}">
       <div class="field"><label>AdBlue: % del gasolio</label><input type="number" min="0" step="0.5" id="adBluePerc" value="${prev.input.adBluePerc}"></div>
       <div class="field"><label>AdBlue: €/l</label><input type="number" min="0" step="0.01" id="adBluePrezzo" value="${prev.input.adBluePrezzo}"></div>
+    </div>
+    <div id="estero-row" class="form-row" style="${prev.input.estero?'':'display:none'}">
+      <div class="field"><label>Pedaggi / vignette estero (€) <span class="badge-auto" id="badge-pedaggio">stima</span></label>
+        <input type="number" min="0" step="0.5" id="pedaggi" value="${prev.input.pedaggi}">
+        <div class="hint" id="pedaggio-hint"></div></div>
+      <div class="field"></div>
     </div>
     <label class="section-t" style="margin-top:6px">Materiale di consumo</label>
     <div id="materiale"></div>
@@ -165,7 +172,6 @@ export async function renderPreventivo(view, id, ctx) {
     const m = imp.mezzi.find(x => x.id === e.target.value);
     if (m) { prev.input.alimentazione = m.alimentazione; $('#alim').value = m.alimentazione; }
     if (prezzoAuto) refillPrezzo();
-    if (pedaggioAuto) refillPedaggio();
     updateMezzoHint(); recalc();
   });
   $('#alim').value = prev.input.alimentazione;
@@ -202,6 +208,11 @@ export async function renderPreventivo(view, id, ctx) {
     $('#adblue-row').style.display = e.target.checked ? '' : 'none';
     recalc();
   });
+  $('#estero').addEventListener('change', e => {
+    esteroAuto = false; // scelta manuale: non seguire più la destinazione
+    setEstero(e.target.checked);
+    recalc();
+  });
   $('#add-mat').addEventListener('click', () => { prev.input.materiale.push({ desc: '', importo: 0 }); renderMateriale(); recalc(); });
   view.querySelector('#tariffa-preset').addEventListener('click', e => {
     const b = e.target.closest('[data-t]'); if (!b) return;
@@ -213,7 +224,7 @@ export async function renderPreventivo(view, id, ctx) {
 
   updateMezzoHint();
   updateCarbHint();
-  initPedaggio();
+  initEsteroPedaggio();
   recalc();
 
   // ================================================================
@@ -240,9 +251,7 @@ export async function renderPreventivo(view, id, ctx) {
       <div class="form-row" style="margin-top:12px">
         <div class="field"><label>Km totali</label><input type="number" min="0" id="kmTotali" value="${prev.input.kmTotali||''}">
           <div class="hint" id="km-hint">Puoi calcolarli automaticamente o inserirli a mano.</div></div>
-        <div class="field"><label>&nbsp;</label>
-          <label class="chk"><input type="checkbox" id="avoidTolls"> Evita autostrade a pedaggio nel calcolo</label>
-        </div>
+        <div class="field"></div>
       </div>
     </div>`);
     itinBody.appendChild(controls);
@@ -253,7 +262,7 @@ export async function renderPreventivo(view, id, ctx) {
     const kmInput = controls.querySelector('#kmTotali');
     kmInput.addEventListener('input', e => {
       prev.input.kmTotali = num(e.target.value); prev.km_auto = false;
-      if (pedaggioAuto) refillPedaggio();
+      if (prev.input.estero && pedaggioAuto) refillPedaggio();
       recalc();
     });
   }
@@ -292,6 +301,7 @@ export async function renderPreventivo(view, id, ctx) {
       if (info) { prev.paese_dest = info.iso2; prev.paese_dest_nome = info.nome; }
       else { prev.paese_dest = dest.iso2 || null; prev.paese_dest_nome = dest.paese || null; }
       if (prezzoAuto) refillPrezzo();
+      if (esteroAuto) setEstero(!!(prev.paese_dest && prev.paese_dest !== 'IT'));
     }
     updateCarbHint();
     recalc();
@@ -305,13 +315,13 @@ export async function renderPreventivo(view, id, ctx) {
     if (prev.andata_ritorno) coords.push([CONFIG.partenza.lon, CONFIG.partenza.lat]);
     const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Calcolo…';
     try {
-      const r = await route(coords, { avoidTolls: view.querySelector('#avoidTolls').checked });
+      const r = await route(coords);
       prev.input.kmTotali = Math.round(r.distanceKm);
       prev.km_auto = true;
       view.querySelector('#kmTotali').value = prev.input.kmTotali;
       const h = Math.floor(r.durationMin / 60), m = Math.round(r.durationMin % 60);
       view.querySelector('#km-hint').innerHTML = `✅ ${fmtKm(prev.input.kmTotali)} · durata stimata ${h}h ${m}m ${prev.andata_ritorno ? '(a/r)' : '(sola andata)'}`;
-      if (pedaggioAuto) refillPedaggio();
+      if (prev.input.estero && pedaggioAuto) refillPedaggio();
       recalc();
     } catch (e) {
       const msg = e instanceof RoutingError ? e.message : (e.message || 'Errore nel calcolo');
@@ -350,8 +360,9 @@ export async function renderPreventivo(view, id, ctx) {
     clear(box);
     const voci = [
       ['pasti', 'Pasti'], ['pernottamento', 'Pernottamento'],
-      ['pedaggi', 'Pedaggi'], ['medico', 'Medico al seguito'], ['materiale', 'Materiale di consumo'],
+      ['medico', 'Medico al seguito'], ['materiale', 'Materiale di consumo'],
     ];
+    if (prev.input.estero) voci.splice(2, 0, ['pedaggi', 'Pedaggi/vignette']);
     const wrap = el('<div style="display:flex;flex-wrap:wrap;gap:6px 20px"></div>');
     for (const [k, lbl] of voci) {
       const c = el(`<label class="chk"><input type="checkbox" ${prev.input.ribalta[k] ? 'checked' : ''}> ${lbl}</label>`);
@@ -376,7 +387,7 @@ export async function renderPreventivo(view, id, ctx) {
       ${r.adBlue > 0 ? line(`AdBlue (${fmtNum(r.litriAdBlue,1)} l)`, r.adBlue) : ''}
       ${line('Pasti', r.pasti)}
       ${r.pernottamento > 0 ? line('Pernottamento', r.pernottamento) : ''}
-      ${r.pedaggi > 0 ? line('Pedaggi', r.pedaggi) : ''}
+      ${r.pedaggi > 0 ? line('Pedaggi/vignette', r.pedaggi) : ''}
       ${r.medico > 0 ? line('Medico', r.medico) : ''}
       ${r.materiale > 0 ? line('Materiale', r.materiale) : ''}
     </div></div>`);
@@ -405,6 +416,7 @@ export async function renderPreventivo(view, id, ctx) {
     prev.km_totali = prev.input.kmTotali;
     prev._prezzoAuto = prezzoAuto;
     prev._pedaggioAuto = pedaggioAuto;
+    prev._esteroAuto = esteroAuto;
     const btn = head.querySelector('#btn-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvo…';
     try {
@@ -438,21 +450,31 @@ export async function renderPreventivo(view, id, ctx) {
       const badge = view.querySelector('#badge-auto'); if (badge) badge.style.display = '';
     }
   }
-  function tariffaPedaggio() {
-    const m = imp.mezzi.find(x => x.id === prev.input.mezzoId);
-    const r = (m && m.pedaggioKm != null) ? m.pedaggioKm : (imp.pedaggioKmDefault != null ? imp.pedaggioKmDefault : 0.10);
+  function tariffaEstero() {
+    const r = imp.pedaggiEsteroKm != null ? imp.pedaggiEsteroKm : 0.10;
     return Number(r) || 0;
   }
   function refillPedaggio() {
-    const rate = tariffaPedaggio();
+    const rate = tariffaEstero();
     const km = num(prev.input.kmTotali);
     prev.input.pedaggi = Math.round(km * rate);
     const inp = view.querySelector('#pedaggi'); if (inp) inp.value = prev.input.pedaggi || '';
     const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = '';
     const h = view.querySelector('#pedaggio-hint');
-    if (h) h.innerHTML = `≈ ${fmtNum(km, 0)} km × ${fmtEuro(rate)}/km. Stima, modificabile.`;
+    if (h) h.innerHTML = `≈ ${fmtNum(km, 0)} km × ${fmtEuro(rate)}/km (stima estero). Adegua a mano per vignette o caselli reali.`;
   }
-  function initPedaggio() {
+  // Attiva/disattiva la sezione pedaggi in base al viaggio estero.
+  function setEstero(on) {
+    prev.input.estero = on;
+    const cb = view.querySelector('#estero'); if (cb) cb.checked = on;
+    const row = view.querySelector('#estero-row'); if (row) row.style.display = on ? '' : 'none';
+    if (on) { if (pedaggioAuto) refillPedaggio(); }
+    else { prev.input.pedaggi = 0; const p = view.querySelector('#pedaggi'); if (p) p.value = ''; }
+    renderRibalta();
+  }
+  function initEsteroPedaggio() {
+    const row = view.querySelector('#estero-row'); if (row) row.style.display = prev.input.estero ? '' : 'none';
+    if (!prev.input.estero) return;
     if (pedaggioAuto) { refillPedaggio(); return; }
     const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = 'none';
     const h = view.querySelector('#pedaggio-hint'); if (h) h.textContent = 'Valore inserito a mano.';

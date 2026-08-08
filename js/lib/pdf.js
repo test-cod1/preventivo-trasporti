@@ -93,7 +93,7 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
     ${voce(`AdBlue — ${num(r.litriAdBlue, 1)} l`, r.adBlue, r.adBlue > 0)}
     ${voce(`Pasti — ${num(inp.persone)}×${num(inp.pastiPersona)} × ${euro(inp.pastoCosto)}`, r.pasti, r.pasti > 0)}
     ${voce('Pernottamento', r.pernottamento, r.pernottamento > 0)}
-    ${voce('Pedaggi', r.pedaggi, r.pedaggi > 0)}
+    ${voce('Pedaggi / vignette (estero)', r.pedaggi, r.pedaggi > 0)}
     ${voce('Medico al seguito', r.medico, r.medico > 0)}
     ${righeMateriale}
     <tr><td><b>Spesa reale (costo vivo)</b></td><td class="r"><b>${euro(r.spesaReale)}</b></td></tr>
