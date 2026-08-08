@@ -34,6 +34,8 @@ export async function renderPreventivo(view, id, ctx) {
   let prezzoAuto = prev.input._prezzoAuto !== false; // di default il prezzo segue il Paese
   let pedaggioAuto = prev.input._pedaggioAuto !== false; // stima pedaggi estero attiva finché non la modifichi a mano
   let esteroAuto = prev.input._esteroAuto !== false;     // il flag "estero" segue la destinazione finché non lo forzi a mano
+  let medicoOreAuto = prev.input._medicoOreAuto !== false; // le ore medico seguono la durata del percorso finché non le tocchi
+  let medicoAuto = prev.input._medicoAuto !== false;       // il totale medico = ore × tariffa finché non lo tocchi
 
   // ---- layout ----
   const head = el(`<div class="page-head">
@@ -103,13 +105,13 @@ export async function renderPreventivo(view, id, ctx) {
   // ================= SEZIONE 6: ALTRE VOCI =================
   const cExtra = card('Altre voci', `
     <div class="form-row three">
-      <div class="field"><label>Medico al seguito (€)</label><input type="number" min="0" step="1" id="medico" value="${prev.input.medico}"></div>
       <div class="field"><label>&nbsp;</label>
         <label class="chk"><input type="checkbox" id="adblue" ${prev.input.adBlueOn?'checked':''}> AdBlue (stima su gasolio)</label>
       </div>
       <div class="field"><label>&nbsp;</label>
         <label class="chk"><input type="checkbox" id="estero" ${prev.input.estero?'checked':''}> Viaggio all'estero (pedaggi/vignette)</label>
       </div>
+      <div class="field"></div>
     </div>
     <div id="adblue-row" class="form-row" style="${prev.input.adBlueOn?'':'display:none'}">
       <div class="field"><label>AdBlue: % del gasolio</label><input type="number" min="0" step="0.5" id="adBluePerc" value="${prev.input.adBluePerc}"></div>
@@ -126,6 +128,20 @@ export async function renderPreventivo(view, id, ctx) {
     <button class="btn sm" id="add-mat" type="button">➕ Aggiungi voce</button>`);
   main.appendChild(cExtra);
   renderMateriale();
+
+  // ================= SEZIONE 6b: MEDICO AL SEGUITO =================
+  const cMedico = card('Medico al seguito', `
+    <div class="form-row three">
+      <div class="field"><label>Ore stimate <span class="badge-auto" id="badge-medico-ore">stima</span></label>
+        <input type="number" min="0" step="0.5" id="medicoOre" value="${prev.input.medicoOre || ''}">
+        <div class="hint" id="medico-ore-hint"></div></div>
+      <div class="field"><label>Tariffa oraria (€/h)</label>
+        <input type="number" min="0" step="0.5" id="medicoOraria" value="${prev.input.medicoOraria}"></div>
+      <div class="field"><label>Totale medico (€) <span class="badge-auto" id="badge-medico-tot">calcolato</span></label>
+        <input type="number" min="0" step="0.5" id="medico" value="${prev.input.medico || ''}">
+        <div class="hint" id="medico-tot-hint"></div></div>
+    </div>`);
+  main.appendChild(cMedico);
 
   // ================= SEZIONE 7: TARIFFA =================
   const cTar = card('Tariffa per l\'addebito', `
@@ -183,7 +199,26 @@ export async function renderPreventivo(view, id, ctx) {
     const h = $('#pedaggio-hint'); if (h) h.textContent = 'Valore inserito a mano.';
     recalc();
   });
-  bindNum('#medico', 'medico');
+  $('#medicoOre').addEventListener('input', e => {
+    prev.input.medicoOre = num(e.target.value);
+    medicoOreAuto = false;
+    const b = $('#badge-medico-ore'); if (b) b.style.display = 'none';
+    const h = $('#medico-ore-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    if (medicoAuto) refillMedicoTotale();
+    recalc();
+  });
+  $('#medicoOraria').addEventListener('input', e => {
+    prev.input.medicoOraria = num(e.target.value);
+    if (medicoAuto) refillMedicoTotale();
+    recalc();
+  });
+  $('#medico').addEventListener('input', e => {
+    prev.input.medico = num(e.target.value);
+    medicoAuto = false;
+    const b = $('#badge-medico-tot'); if (b) b.style.display = 'none';
+    const h = $('#medico-tot-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    recalc();
+  });
   bindNum('#adBluePerc', 'adBluePerc');
   bindNum('#adBluePrezzo', 'adBluePrezzo');
   bindNum('#tariffaKm', 'tariffaKm');
@@ -210,6 +245,7 @@ export async function renderPreventivo(view, id, ctx) {
   updateMezzoHint();
   updateCarbHint();
   initEsteroPedaggio();
+  initMedico();
   recalc();
 
   // ================================================================
@@ -336,6 +372,7 @@ export async function renderPreventivo(view, id, ctx) {
       const h = Math.floor(r.durationMin / 60), m = Math.round(r.durationMin % 60);
       view.querySelector('#km-hint').innerHTML = `✅ ${fmtKm(prev.input.kmTotali)} · durata stimata ${h}h ${m}m ${prev.andata_ritorno ? '(a/r)' : '(sola andata)'}`;
       if (prev.input.estero && pedaggioAuto) refillPedaggio();
+      if (medicoOreAuto) refillMedicoOre(r.durationMin);
       recalc();
     } catch (e) {
       const msg = e instanceof RoutingError ? e.message : (e.message || 'Errore nel calcolo');
@@ -402,7 +439,7 @@ export async function renderPreventivo(view, id, ctx) {
       ${line('Pasti', r.pasti)}
       ${r.pernottamento > 0 ? line('Pernottamento', r.pernottamento) : ''}
       ${r.pedaggi > 0 ? line('Pedaggi/vignette', r.pedaggi) : ''}
-      ${r.medico > 0 ? line('Medico', r.medico) : ''}
+      ${r.medico > 0 ? line(prev.input.medicoOre ? `Medico (${fmtNum(prev.input.medicoOre,1)}h × ${fmtEuro(prev.input.medicoOraria)}/h)` : 'Medico', r.medico) : ''}
       ${r.materiale > 0 ? line('Materiale', r.materiale) : ''}
     </div></div>`);
     summaryCol.appendChild(bd);
@@ -434,7 +471,7 @@ export async function renderPreventivo(view, id, ctx) {
       km_totali: prev.km_totali,
       paese_dest: prev.paese_dest ?? null,
       paese_dest_nome: prev.paese_dest_nome ?? null,
-      input: { ...prev.input, partenza: prev.partenza, _prezzoAuto: prezzoAuto, _pedaggioAuto: pedaggioAuto, _esteroAuto: esteroAuto },
+      input: { ...prev.input, partenza: prev.partenza, _prezzoAuto: prezzoAuto, _pedaggioAuto: pedaggioAuto, _esteroAuto: esteroAuto, _medicoOreAuto: medicoOreAuto, _medicoAuto: medicoAuto },
       risultato: prev.risultato,
     };
     if (prev.id) rec.id = prev.id;
@@ -509,6 +546,37 @@ export async function renderPreventivo(view, id, ctx) {
     if (pedaggioAuto) { refillPedaggio(); return; }
     const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = 'none';
     const h = view.querySelector('#pedaggio-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+  }
+  // Ore stimate dalla durata del percorso (arrotondate alla mezz'ora).
+  function refillMedicoOre(durationMin) {
+    const ore = Math.round((num(durationMin) / 60) * 2) / 2;
+    prev.input.medicoOre = ore;
+    const inp = view.querySelector('#medicoOre'); if (inp) inp.value = ore || '';
+    const badge = view.querySelector('#badge-medico-ore'); if (badge) badge.style.display = '';
+    const h = view.querySelector('#medico-ore-hint'); if (h) h.innerHTML = `≈ durata del percorso. Stima, modificabile.`;
+    if (medicoAuto) refillMedicoTotale();
+  }
+  function refillMedicoTotale() {
+    const ore = num(prev.input.medicoOre);
+    const tariffa = num(prev.input.medicoOraria);
+    prev.input.medico = Math.round(ore * tariffa * 100) / 100;
+    const inp = view.querySelector('#medico'); if (inp) inp.value = prev.input.medico || '';
+    const badge = view.querySelector('#badge-medico-tot'); if (badge) badge.style.display = '';
+    const h = view.querySelector('#medico-tot-hint');
+    if (h) h.innerHTML = `= ${fmtNum(ore,1)} h × ${fmtEuro(tariffa)}/h. Calcolato, modificabile.`;
+  }
+  function initMedico() {
+    if (!medicoOreAuto) {
+      const badge = view.querySelector('#badge-medico-ore'); if (badge) badge.style.display = 'none';
+      const h = view.querySelector('#medico-ore-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    }
+    if (!medicoAuto) {
+      const badge = view.querySelector('#badge-medico-tot'); if (badge) badge.style.display = 'none';
+      const h = view.querySelector('#medico-tot-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    } else if (prev.input.medicoOre) {
+      const h = view.querySelector('#medico-tot-hint');
+      if (h) h.innerHTML = `= ${fmtNum(prev.input.medicoOre,1)} h × ${fmtEuro(prev.input.medicoOraria)}/h. Calcolato, modificabile.`;
+    }
   }
   // Titolo automatico = destinazione finale semplificata (solo al salvataggio).
   function titoloDaDestinazione() {

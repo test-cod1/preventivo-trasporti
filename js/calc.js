@@ -26,6 +26,7 @@ export const DEFAULT_IMPOSTAZIONI = {
 
   pastoCosto: 25,        // € a pasto a persona (Excel: 25)
   tariffaKm: 1.20,       // € / km per l'addebito (Excel usava 1,15 e 1,20)
+  medicoTariffaOraria: 20, // €/ora indicativa per il medico al seguito (modificabile)
 
   // AdBlue (solo mezzi diesel): stima come % dei litri di gasolio consumati.
   adBluePerc: 4,         // % del volume di gasolio
@@ -61,7 +62,9 @@ export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
     camere: 0,
     prezzoCameraNotte: 0,          // € a camera a notte
     prezzoPersonaNotte: 0,         // € a persona a notte (opzionale)
-    medico: 0,
+    medico: 0,              // totale medico (auto = ore x tariffa oraria, sempre modificabile)
+    medicoOre: 0,           // ore stimate dalla durata del percorso (modificabili)
+    medicoOraria: imp.medicoTariffaOraria, // €/ora, modificabile
     estero: false,          // viaggio fuori Italia -> abilita i pedaggi/vignette
     pedaggi: 0,             // pedaggi/vignette esteri (0 e nascosti in Italia)
     adBlueOn: false,

@@ -59,6 +59,10 @@ export async function renderImpostazioni(view, ctx) {
       <div class="field"><label>Pedaggi estero (€/km)</label><input type="number" step="0.01" id="pedaggiEsteroKm" value="${imp.pedaggiEsteroKm}">
         <div class="hint">In Italia la CRI è esente: i pedaggi si applicano solo ai viaggi all'estero.</div></div>
     </div>
+    <div class="form-row three">
+      <div class="field"><label>Medico: tariffa oraria (€/h)</label><input type="number" step="0.5" id="medicoTariffaOraria" value="${imp.medicoTariffaOraria}">
+        <div class="hint">Default usato nel preventivo: totale = ore stimate × tariffa, sempre modificabile.</div></div>
+    </div>
     <label class="section-t" style="margin-top:4px">Voci ribaltate sull'addebito (default)</label>
     <div id="ribalta" style="display:flex;flex-wrap:wrap;gap:6px 20px"></div>`);
   view.appendChild(cPar);
@@ -74,6 +78,7 @@ export async function renderImpostazioni(view, ctx) {
   cPar.querySelector('#adBluePerc').addEventListener('input', e => imp.adBluePerc = Number(e.target.value) || 0);
   cPar.querySelector('#adBluePrezzo').addEventListener('input', e => imp.adBluePrezzo = Number(e.target.value) || 0);
   cPar.querySelector('#pedaggiEsteroKm').addEventListener('input', e => imp.pedaggiEsteroKm = Number(e.target.value) || 0);
+  cPar.querySelector('#medicoTariffaOraria').addEventListener('input', e => imp.medicoTariffaOraria = Number(e.target.value) || 0);
 
   // ---------- Prezzi carburante ----------
   const cFuel = card(`Prezzi carburante di riferimento`, `
