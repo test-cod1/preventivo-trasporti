@@ -66,7 +66,7 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
     <div class="org">
       <b>${esc(intestazione?.nome || 'Croce Rossa Italiana')}</b><br>
       ${esc(intestazione?.riga2 || 'Corso Aldo Gastaldi 11, Genova')}<br>
-      Data: ${dt(prev.data_servizio || prev.created_at || new Date().toISOString())}
+      Data: ${dt(prev.created_at || new Date().toISOString())}
     </div>
   </div>
 
@@ -74,7 +74,6 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
     <div>
       <h2>Dati servizio</h2>
       <table>
-        ${prev.cliente ? `<tr><td class="muted">Committente</td><td>${esc(prev.cliente)}</td></tr>` : ''}
         <tr><td class="muted">Km totali</td><td>${num(inp.kmTotali)} km${inp.andata_ritorno === false ? ' (sola andata)' : ' (a/r)'}</td></tr>
         <tr><td class="muted">Mezzo</td><td>${esc(mezzoNome(inp, imp))} · ${num(r.consumo, 1)} km/l · ${esc(inp.alimentazione || '')}</td></tr>
         <tr><td class="muted">Equipaggio</td><td>${num(inp.persone)} persone</td></tr>

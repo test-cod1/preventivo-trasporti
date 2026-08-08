@@ -19,7 +19,7 @@ export async function renderPreventivo(view, id, ctx) {
     prev.tappe = prev.tappe || [];
   } else {
     prev = {
-      titolo: '', cliente: '', data_servizio: '', note: '', stato: 'bozza',
+      titolo: '', note: '',
       tappe: [emptyTappa()],
       andata_ritorno: true, km_auto: true,
       input: nuovoInput(imp),
@@ -53,20 +53,6 @@ export async function renderPreventivo(view, id, ctx) {
   view.appendChild(editor);
   const main = editor.querySelector('.col-main');
   const summaryCol = editor.querySelector('.summary');
-
-  // ================= SEZIONE 1: DATI GENERALI =================
-  const cGen = card('Dati generali', `
-    <div class="form-row">
-      <div class="field"><label>Titolo preventivo</label><input type="text" id="titolo" placeholder="Es. Trasporto Genova → Avellino" value="${esc(prev.titolo)}"></div>
-      <div class="field"><label>Committente / cliente</label><input type="text" id="cliente" placeholder="ASL, famiglia, ente…" value="${esc(prev.cliente)}"></div>
-    </div>
-    <div class="form-row three">
-      <div class="field"><label>Data servizio</label><input type="date" id="data_servizio" value="${esc(prev.data_servizio || '')}"></div>
-      <div class="field"><label>Stato</label><select id="stato">
-        ${['bozza','inviato','confermato','annullato'].map(s => `<option value="${s}" ${prev.stato===s?'selected':''}>${cap(s)}</option>`).join('')}
-      </select></div>
-    </div>`);
-  main.appendChild(cGen);
 
   // ================= SEZIONE 2: ITINERARIO =================
   const cItin = card('Itinerario e chilometri', '');
@@ -161,10 +147,6 @@ export async function renderPreventivo(view, id, ctx) {
 
   // ---------------- BINDINGS ----------------
   const $ = (sel) => view.querySelector(sel);
-  bind('#titolo', v => prev.titolo = v, 'text');
-  bind('#cliente', v => prev.cliente = v, 'text');
-  bind('#data_servizio', v => prev.data_servizio = v, 'text');
-  bind('#stato', v => prev.stato = v, 'text');
   bind('#note', v => prev.note = v, 'text');
 
   $('#mezzo').addEventListener('change', e => {
@@ -407,11 +389,7 @@ export async function renderPreventivo(view, id, ctx) {
   // ================================================================
   async function save() {
     syncItinerario();
-    if (!prev.titolo) prev.titolo = view.querySelector('#titolo').value.trim();
-    if (!prev.titolo) {
-      const dest = prev.paese_dest_nome || (prev.tappe.find(t=>t.label)?.label) || 'destinazione';
-      prev.titolo = `Trasporto → ${shorten(dest)}`;
-    }
+    prev.titolo = titoloDaDestinazione();
     prev.risultato = calcola(prev.input, imp);
     prev.km_totali = prev.input.kmTotali;
     prev._prezzoAuto = prezzoAuto;
@@ -479,6 +457,12 @@ export async function renderPreventivo(view, id, ctx) {
     const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = 'none';
     const h = view.querySelector('#pedaggio-hint'); if (h) h.textContent = 'Valore inserito a mano.';
   }
+  // Titolo automatico = destinazione finale semplificata (solo al salvataggio).
+  function titoloDaDestinazione() {
+    const dest = [...prev.tappe].reverse().find(t => t && t.label && String(t.label).trim());
+    const citta = dest ? shorten(dest.label).replace(/\s*\(.*\)\s*$/, '').trim() : '';
+    return citta ? `Genova → ${citta}` : 'Preventivo trasporto';
+  }
   function updateMezzoHint() {
     const m = imp.mezzi.find(x => x.id === prev.input.mezzoId);
     const h = view.querySelector('#mezzo-hint');
@@ -531,7 +515,6 @@ function attachAutocomplete(input, box, onSelect) {
 function emptyTappa() { return { label: '', lon: null, lat: null, iso2: null, iso3: null, paese: null }; }
 function tabella(imp) { return imp.prezziCustom || undefined; }
 function num(v) { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) ? n : 0; }
-function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function shorten(s) { return String(s).split(',')[0].trim(); }
 function cleanForSave(p) {
   const { _prezzoAuto, ...rest } = p;

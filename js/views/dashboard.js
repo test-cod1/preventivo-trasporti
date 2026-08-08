@@ -1,14 +1,6 @@
 import { preventivi } from '../data/store.js';
-import { calcola } from '../calc.js';
 import { el, clear, fmtEuro, fmtDate, fmtKm, esc, toast, confirmDialog } from '../lib/ui.js';
 import { stampaPreventivo } from '../lib/pdf.js';
-
-const STATI = {
-  bozza:      { label: 'Bozza',      chip: '' },
-  inviato:    { label: 'Inviato',    chip: 'warn' },
-  confermato: { label: 'Confermato', chip: 'ok' },
-  annullato:  { label: 'Annullato',  chip: 'danger' },
-};
 
 export async function renderDashboard(view, ctx) {
   clear(view);
@@ -22,10 +14,9 @@ export async function renderDashboard(view, ctx) {
 
   // stats
   const totAddebito = list.reduce((s, p) => s + (p.risultato?.addebito || 0), 0);
-  const confermati = list.filter(p => p.stato === 'confermato');
   const totMargine = list.reduce((s, p) => s + (p.risultato?.margine || 0), 0);
   const stats = el(`<div class="grid stats" style="margin-bottom:22px">
-    <div class="stat accent"><div class="k">Preventivi</div><div class="v">${list.length}</div><div class="s">${confermati.length} confermati</div></div>
+    <div class="stat accent"><div class="k">Preventivi</div><div class="v">${list.length}</div><div class="s">in archivio</div></div>
     <div class="stat"><div class="k">Valore totale (addebito)</div><div class="v">${fmtEuro(totAddebito)}</div></div>
     <div class="stat"><div class="k">Margine stimato totale</div><div class="v">${fmtEuro(totMargine)}</div></div>
   </div>`);
@@ -39,18 +30,14 @@ export async function renderDashboard(view, ctx) {
 
   // toolbar
   const toolbar = el(`<div class="toolbar">
-    <div class="search"><input type="text" id="q" placeholder="Cerca per titolo, committente, destinazione…"></div>
-    <select id="fstato">
-      <option value="">Tutti gli stati</option>
-      ${Object.entries(STATI).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}
-    </select>
+    <div class="search"><input type="text" id="q" placeholder="Cerca per titolo o destinazione…"></div>
   </div>`);
   view.appendChild(toolbar);
 
   const card = el(`<div class="card"><div class="tbl-wrap"><table class="tbl">
     <thead><tr>
-      <th>Titolo / committente</th><th>Data</th><th>Destinazione</th>
-      <th>Km</th><th>Spesa reale</th><th>Addebito</th><th>Stato</th><th></th>
+      <th>Titolo</th><th>Creato il</th><th>Destinazione</th>
+      <th>Km</th><th>Spesa reale</th><th>Addebito</th><th></th>
     </tr></thead><tbody></tbody>
   </table></div></div>`);
   view.appendChild(card);
@@ -58,28 +45,24 @@ export async function renderDashboard(view, ctx) {
 
   function draw() {
     const q = toolbar.querySelector('#q').value.toLowerCase().trim();
-    const fs = toolbar.querySelector('#fstato').value;
     clear(tbody);
     const filtered = list.filter(p => {
-      if (fs && p.stato !== fs) return false;
       if (!q) return true;
-      const hay = [p.titolo, p.cliente, destLabel(p)].join(' ').toLowerCase();
+      const hay = [p.titolo, destLabel(p)].join(' ').toLowerCase();
       return hay.includes(q);
     });
     if (!filtered.length) {
-      tbody.appendChild(el(`<tr><td colspan="8" class="muted" style="text-align:center;padding:26px">Nessun risultato</td></tr>`));
+      tbody.appendChild(el(`<tr><td colspan="7" class="muted" style="text-align:center;padding:26px">Nessun risultato</td></tr>`));
       return;
     }
     for (const p of filtered) {
-      const st = STATI[p.stato] || STATI.bozza;
       const tr = el(`<tr>
-        <td><b>${esc(p.titolo || 'Senza titolo')}</b>${p.cliente ? `<div class="mini">${esc(p.cliente)}</div>` : ''}</td>
-        <td>${fmtDate(p.data_servizio || p.created_at)}</td>
+        <td><b>${esc(p.titolo || 'Senza titolo')}</b></td>
+        <td>${fmtDate(p.created_at)}</td>
         <td>${esc(destLabel(p))}</td>
         <td class="money">${fmtKm(p.km_totali)}</td>
         <td class="money">${fmtEuro(p.risultato?.spesaReale)}</td>
         <td class="money">${fmtEuro(p.risultato?.addebito)}</td>
-        <td><span class="chip ${st.chip}">${st.label}</span></td>
         <td style="white-space:nowrap;text-align:right">
           <button class="btn ghost sm" data-pdf title="Stampa / PDF">🖨️</button>
           <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
@@ -101,7 +84,6 @@ export async function renderDashboard(view, ctx) {
     }
   }
   toolbar.querySelector('#q').addEventListener('input', draw);
-  toolbar.querySelector('#fstato').addEventListener('change', draw);
   draw();
 }
 
