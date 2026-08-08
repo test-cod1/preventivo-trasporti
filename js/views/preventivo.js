@@ -75,14 +75,8 @@ export async function renderPreventivo(view, id, ctx) {
   const main = editor.querySelector('.col-main');
   const summaryCol = editor.querySelector('.summary');
 
-  // ================= SEZIONE 2: ITINERARIO (sempre visibile) =================
-  const cItin = card('Itinerario e chilometri', '', { collapsible: false });
-  main.appendChild(cItin);
-  const itinBody = cItin.querySelector('.card-b');
-  renderItinerario();
-
-  // ================= SEZIONE 3: MEZZO E CARBURANTE =================
-  const cMezzo = card('Mezzo e carburante', `
+  // ================= SEZIONE 2: PERCORSO E MEZZO (sempre visibile) =================
+  const cItin = card('', `
     <div class="form-row three">
       <div class="field"><label>Mezzo</label><select id="mezzo">
         ${imp.mezzi.map(m => `<option value="${m.id}" ${prev.input.mezzoId===m.id?'selected':''}>${esc(m.nome)} — ${fmtNum(m.consumo,1)} km/l</option>`).join('')}
@@ -96,10 +90,13 @@ export async function renderPreventivo(view, id, ctx) {
         <input type="number" step="0.001" id="prezzoCarb">
         <div class="hint" id="carb-hint"></div>
       </div>
-    </div>`);
-  main.appendChild(cMezzo);
+    </div>
+    <div id="itin-dynamic"></div>`, { collapsible: false });
+  main.appendChild(cItin);
+  const itinBody = cItin.querySelector('#itin-dynamic');
+  renderItinerario();
 
-  // ================= SEZIONE 4: EQUIPAGGIO E PASTI =================
+  // ================= SEZIONE 3: EQUIPAGGIO E PASTI =================
   const cEq = card('Equipaggio e pasti', `
     <div class="form-row three">
       <div class="field"><label>Persone in squadra</label><input type="number" min="0" id="persone" value="${prev.input.persone}"></div>
@@ -108,7 +105,7 @@ export async function renderPreventivo(view, id, ctx) {
     </div>`);
   main.appendChild(cEq);
 
-  // ================= SEZIONE 5: PERNOTTAMENTO =================
+  // ================= SEZIONE 4: PERNOTTAMENTO =================
   const cPern = card('Pernottamento', `
     <div class="form-row three">
       <div class="field"><label>Notti</label><input type="number" min="0" id="notti" value="${prev.input.notti}"></div>
@@ -118,7 +115,7 @@ export async function renderPreventivo(view, id, ctx) {
     <div class="field"><label>€ a persona / notte (opzionale, alternativo alle camere)</label><input type="number" min="0" step="0.5" id="prezzoPersonaNotte" value="${prev.input.prezzoPersonaNotte}"></div>`);
   main.appendChild(cPern);
 
-  // ================= SEZIONE 6: SANITARI (MEDICO / INFERMIERE) =================
+  // ================= SEZIONE 5: SANITARI (MEDICO / INFERMIERE) =================
   const cMedico = card('Sanitari', `
     <div class="form-row three">
       <div class="field"><label>Ore stimate <span class="badge-auto" id="badge-medico-ore">stima</span></label>
@@ -150,7 +147,7 @@ export async function renderPreventivo(view, id, ctx) {
     </div>`);
   main.appendChild(cMedico);
 
-  // ================= SEZIONE 6b: PEDAGGI ESTERO (automatica, no interruttore manuale) =================
+  // ================= SEZIONE 5b: PEDAGGI ESTERO (automatica, no interruttore manuale) =================
   const cPedaggi = card('Pedaggi estero', `
     <div class="form-row">
       <div class="field"><label>Pedaggi / vignette estero (€) <span class="badge-auto" id="badge-pedaggio">stima</span></label>
@@ -160,7 +157,7 @@ export async function renderPreventivo(view, id, ctx) {
     </div>`);
   main.appendChild(cPedaggi);
 
-  // ================= SEZIONE 6c: MATERIALE DI CONSUMO =================
+  // ================= SEZIONE 5c: MATERIALE DI CONSUMO =================
   const cMateriale = card('Materiale di consumo', `
     <div id="materiale"></div>
     <button class="btn sm" id="add-mat" type="button">➕ Aggiungi voce</button>`);
@@ -522,7 +519,8 @@ export async function renderPreventivo(view, id, ctx) {
   // senza bisogno di JS di gestione (il contenuto resta comunque nel DOM).
   function card(title, bodyHtml, { collapsible = true, open = false } = {}) {
     if (!collapsible) {
-      return el(`<div class="card"><div class="card-h">${esc(title)}</div><div class="card-b">${bodyHtml}</div></div>`);
+      const head = title ? `<div class="card-h">${esc(title)}</div>` : '';
+      return el(`<div class="card">${head}<div class="card-b">${bodyHtml}</div></div>`);
     }
     return el(`<details class="card collapsible"${open ? ' open' : ''}>
       <summary class="card-h">${esc(title)}<span class="chev">▾</span></summary>
