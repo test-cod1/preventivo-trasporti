@@ -12,7 +12,7 @@ Ricalca e amplia la logica dello storico foglio Excel "conto trasferte":
   + voci a rimborso), con **margine** in evidenza.
 - Voci complete: carburante, pasti, pernottamento, sanitari (medico/infermiere),
   pedaggi/vignette estero (attivi automaticamente solo per destinazioni fuori Italia),
-  materiale di consumo (orinale, DPI…).
+  materiale di consumo (ossigeno, orinale, DPI…).
 - **Storico preventivi** con stati (bozza / inviato / confermato / annullato),
   ricerca e **stampa/PDF** del preventivo.
 - Parametri tutti configurabili (consumi mezzi, €/pasto, tariffa €/km, prezzi carburante).

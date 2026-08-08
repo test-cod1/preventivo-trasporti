@@ -63,6 +63,7 @@ export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
     estero: false,          // viaggio fuori Italia -> abilita i pedaggi/vignette
     pedaggi: 0,             // pedaggi/vignette esteri (0 e nascosti in Italia)
     materiale: [],                 // [{ desc, importo }]
+    materialeOn: false,     // sezione Materiale di consumo disattivata di default
     tariffaKm: 0,                  // azzerata: si imposta con i preset o a mano
   };
 }
@@ -95,7 +96,8 @@ export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {
   const sanitari = medico + infermiere;
   // In Italia niente pedaggi (CRI esente): contano solo se estero attivo.
   const pedaggi = input.estero ? n(input.pedaggi) : 0;
-  const materiale = (input.materiale || []).reduce((s, r) => s + n(r.importo), 0);
+  // Materiale di consumo (sezione disattivabile: conta solo se materialeOn)
+  const materiale = input.materialeOn ? (input.materiale || []).reduce((s, r) => s + n(r.importo), 0) : 0;
 
   // --- SPESA REALE (costo vivo) ---
   const spesaReale = carburante + pasti + pernottamento + sanitari + pedaggi + materiale;

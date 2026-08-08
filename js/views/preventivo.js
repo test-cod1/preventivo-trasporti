@@ -29,6 +29,7 @@ export async function renderPreventivo(view, id, ctx) {
     // di default per i preventivi vecchi. L'Infermiere è un ruolo nuovo, assente prima.
     if (rawInput.medicoOn === undefined) prev.input.medicoOn = true;
     if (rawInput.infermiereOn === undefined) prev.input.infermiereOn = false;
+    if (rawInput.materialeOn === undefined) prev.input.materialeOn = true;
     prev.tappe = prev.tappe || [];
     prev.partenza = prev.input.partenza || defaultPartenza();
   } else {
@@ -297,6 +298,7 @@ export async function renderPreventivo(view, id, ctx) {
         <label class="switch"><input type="checkbox" id="sw-pasti" ${prev.input.pastiOn ? 'checked' : ''}><span class="slider"></span>Pasti</label>
         <label class="switch"><input type="checkbox" id="sw-pernotto" ${prev.input.pernottamentoOn ? 'checked' : ''}><span class="slider"></span>Pernottamento</label>
         <label class="switch"><input type="checkbox" id="sw-sanitari" ${prev.input.sanitariOn ? 'checked' : ''}><span class="slider"></span>Sanitari</label>
+        <label class="switch"><input type="checkbox" id="sw-materiale" ${prev.input.materialeOn ? 'checked' : ''}><span class="slider"></span>Materiale</label>
       </div>
     </div>`);
     itinBody.appendChild(controls);
@@ -324,6 +326,7 @@ export async function renderPreventivo(view, id, ctx) {
     controls.querySelector('#sw-pasti').addEventListener('change', e => setSezione('pastiOn', cEq, e.target.checked));
     controls.querySelector('#sw-pernotto').addEventListener('change', e => setSezione('pernottamentoOn', cPern, e.target.checked));
     controls.querySelector('#sw-sanitari').addEventListener('change', e => setSezione('sanitariOn', cMedico, e.target.checked));
+    controls.querySelector('#sw-materiale').addEventListener('change', e => setSezione('materialeOn', cMateriale, e.target.checked));
   }
 
   function partenzaRow() {
@@ -435,7 +438,7 @@ export async function renderPreventivo(view, id, ctx) {
     clear(box);
     (prev.input.materiale || []).forEach((m, i) => {
       const r = el(`<div class="matrow">
-        <input type="text" placeholder="Descrizione (es. orinale, DPI…)" value="${esc(m.desc || '')}">
+        <input type="text" placeholder="Descrizione (es. ossigeno, orinale, DPI…)" value="${esc(m.desc || '')}">
         <input type="number" step="0.5" placeholder="€" value="${m.importo || ''}">
         <button class="rm btn ghost sm" type="button" title="Rimuovi">✕</button>
       </div>`);
@@ -569,6 +572,7 @@ export async function renderPreventivo(view, id, ctx) {
     cEq.style.display = prev.input.pastiOn ? '' : 'none';
     cPern.style.display = prev.input.pernottamentoOn ? '' : 'none';
     cMedico.style.display = prev.input.sanitariOn ? '' : 'none';
+    cMateriale.style.display = prev.input.materialeOn ? '' : 'none';
   }
   // La sezione "Pedaggi estero" NON ha un interruttore manuale: si attiva
   // unicamente quando la destinazione è fuori dall'Italia (prev.paese_dest).
