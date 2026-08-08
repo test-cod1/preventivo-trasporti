@@ -15,7 +15,13 @@ export async function renderPreventivo(view, id, ctx) {
   if (id) {
     prev = await preventivi.get(id);
     if (!prev) { view.appendChild(el('<div class="empty-state"><div class="big">❓</div><p>Preventivo non trovato.</p></div>')); return; }
-    prev.input = { ...nuovoInput(imp), ...(prev.input || {}) };
+    const rawInput = prev.input || {};
+    prev.input = { ...nuovoInput(imp), ...rawInput };
+    // Compatibilità con preventivi salvati prima degli interruttori Pasti/Pernottamento/
+    // Medico: se il flag non esisteva ancora, la sezione era sempre attiva -> resta attiva.
+    if (rawInput.pastiOn === undefined) prev.input.pastiOn = true;
+    if (rawInput.pernottamentoOn === undefined) prev.input.pernottamentoOn = true;
+    if (rawInput.medicoOn === undefined) prev.input.medicoOn = true;
     prev.tappe = prev.tappe || [];
     prev.partenza = prev.input.partenza || defaultPartenza();
   } else {
@@ -102,7 +108,21 @@ export async function renderPreventivo(view, id, ctx) {
     <div class="field"><label>€ a persona / notte (opzionale, alternativo alle camere)</label><input type="number" min="0" step="0.5" id="prezzoPersonaNotte" value="${prev.input.prezzoPersonaNotte}"></div>`);
   main.appendChild(cPern);
 
-  // ================= SEZIONE 6: ALTRE VOCI =================
+  // ================= SEZIONE 6: MEDICO AL SEGUITO =================
+  const cMedico = card('Medico al seguito', `
+    <div class="form-row three">
+      <div class="field"><label>Ore stimate <span class="badge-auto" id="badge-medico-ore">stima</span></label>
+        <input type="number" min="0" step="0.5" id="medicoOre" value="${prev.input.medicoOre || ''}">
+        <div class="hint" id="medico-ore-hint"></div></div>
+      <div class="field"><label>Tariffa oraria (€/h)</label>
+        <input type="number" min="0" step="0.5" id="medicoOraria" value="${prev.input.medicoOraria}"></div>
+      <div class="field"><label>Totale medico (€) <span class="badge-auto" id="badge-medico-tot">calcolato</span></label>
+        <input type="number" min="0" step="0.5" id="medico" value="${prev.input.medico || ''}">
+        <div class="hint" id="medico-tot-hint"></div></div>
+    </div>`);
+  main.appendChild(cMedico);
+
+  // ================= SEZIONE 6b: ALTRE VOCI =================
   const cExtra = card('Altre voci', `
     <div class="form-row three">
       <div class="field"><label>&nbsp;</label>
@@ -128,20 +148,6 @@ export async function renderPreventivo(view, id, ctx) {
     <button class="btn sm" id="add-mat" type="button">➕ Aggiungi voce</button>`);
   main.appendChild(cExtra);
   renderMateriale();
-
-  // ================= SEZIONE 6b: MEDICO AL SEGUITO =================
-  const cMedico = card('Medico al seguito', `
-    <div class="form-row three">
-      <div class="field"><label>Ore stimate <span class="badge-auto" id="badge-medico-ore">stima</span></label>
-        <input type="number" min="0" step="0.5" id="medicoOre" value="${prev.input.medicoOre || ''}">
-        <div class="hint" id="medico-ore-hint"></div></div>
-      <div class="field"><label>Tariffa oraria (€/h)</label>
-        <input type="number" min="0" step="0.5" id="medicoOraria" value="${prev.input.medicoOraria}"></div>
-      <div class="field"><label>Totale medico (€) <span class="badge-auto" id="badge-medico-tot">calcolato</span></label>
-        <input type="number" min="0" step="0.5" id="medico" value="${prev.input.medico || ''}">
-        <div class="hint" id="medico-tot-hint"></div></div>
-    </div>`);
-  main.appendChild(cMedico);
 
   // ================= SEZIONE 7: TARIFFA =================
   const cTar = card('Tariffa per l\'addebito', `
@@ -246,6 +252,7 @@ export async function renderPreventivo(view, id, ctx) {
   updateCarbHint();
   initEsteroPedaggio();
   initMedico();
+  initSezioni();
   recalc();
 
   // ================================================================
@@ -271,6 +278,11 @@ export async function renderPreventivo(view, id, ctx) {
           <div class="hint" id="km-hint">Calcolati in automatico dalla destinazione. Puoi correggerli a mano.</div></div>
         <div class="field"></div>
       </div>
+      <div class="switch-row">
+        <label class="switch"><input type="checkbox" id="sw-pasti" ${prev.input.pastiOn ? 'checked' : ''}><span class="slider"></span>Pasti</label>
+        <label class="switch"><input type="checkbox" id="sw-pernotto" ${prev.input.pernottamentoOn ? 'checked' : ''}><span class="slider"></span>Pernottamento</label>
+        <label class="switch"><input type="checkbox" id="sw-medico" ${prev.input.medicoOn ? 'checked' : ''}><span class="slider"></span>Medico al seguito</label>
+      </div>
     </div>`);
     itinBody.appendChild(controls);
 
@@ -283,6 +295,11 @@ export async function renderPreventivo(view, id, ctx) {
       if (prev.input.estero && pedaggioAuto) refillPedaggio();
       recalc();
     });
+    // Interruttori sezioni facoltative: off di default, la maggior parte dei
+    // trasporti non le usa. Attivandoli si apre anche il relativo pannello.
+    controls.querySelector('#sw-pasti').addEventListener('change', e => setSezione('pastiOn', cEq, e.target.checked));
+    controls.querySelector('#sw-pernotto').addEventListener('change', e => setSezione('pernottamentoOn', cPern, e.target.checked));
+    controls.querySelector('#sw-medico').addEventListener('change', e => setSezione('medicoOn', cMedico, e.target.checked));
   }
 
   function partenzaRow() {
@@ -530,6 +547,21 @@ export async function renderPreventivo(view, id, ctx) {
     const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = '';
     const h = view.querySelector('#pedaggio-hint');
     if (h) h.innerHTML = `≈ ${fmtNum(km, 0)} km × ${fmtEuro(rate)}/km (stima estero). Adegua a mano per vignette o caselli reali.`;
+  }
+  // Attiva/disattiva una sezione facoltativa (Pasti/Pernottamento/Medico) dal
+  // relativo interruttore in Itinerario: se off, la sezione è nascosta e non
+  // conta nel totale (gating fatto in calcola() sui flag pastiOn/pernottamentoOn/medicoOn).
+  function setSezione(key, cardEl, on) {
+    prev.input[key] = on;
+    cardEl.style.display = on ? '' : 'none';
+    if (on && cardEl.tagName === 'DETAILS') cardEl.open = true;
+    recalc();
+  }
+  // Applica la visibilità iniziale delle sezioni facoltative in base ai flag salvati.
+  function initSezioni() {
+    cEq.style.display = prev.input.pastiOn ? '' : 'none';
+    cPern.style.display = prev.input.pernottamentoOn ? '' : 'none';
+    cMedico.style.display = prev.input.medicoOn ? '' : 'none';
   }
   // Attiva/disattiva la sezione pedaggi in base al viaggio estero.
   function setEstero(on) {

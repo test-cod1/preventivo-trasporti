@@ -58,13 +58,16 @@ export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
     persone: 0,
     pastiPersona: 0,
     pastoCosto: imp.pastoCosto,    // UNICA voce non azzerata
+    pastiOn: false,         // sezione Pasti disattivata di default (interruttore in Itinerario)
     notti: 0,
     camere: 0,
     prezzoCameraNotte: 0,          // € a camera a notte
     prezzoPersonaNotte: 0,         // € a persona a notte (opzionale)
+    pernottamentoOn: false, // sezione Pernottamento disattivata di default
     medico: 0,              // totale medico (auto = ore x tariffa oraria, sempre modificabile)
     medicoOre: 0,           // ore stimate dalla durata del percorso (modificabili)
     medicoOraria: imp.medicoTariffaOraria, // €/ora, modificabile
+    medicoOn: false,        // sezione Medico disattivata di default
     estero: false,          // viaggio fuori Italia -> abilita i pedaggi/vignette
     pedaggi: 0,             // pedaggi/vignette esteri (0 e nascosti in Italia)
     adBlueOn: false,
@@ -93,16 +96,16 @@ export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {
   const litriAdBlue = input.adBlueOn && isDiesel ? litri * (n(input.adBluePerc) / 100) : 0;
   const adBlue = litriAdBlue * n(input.adBluePrezzo);
 
-  // --- Pasti ---
-  const pasti = n(input.persone) * n(input.pastiPersona) * n(input.pastoCosto);
+  // --- Pasti (sezione disattivabile: conta solo se pastiOn) ---
+  const pasti = input.pastiOn ? n(input.persone) * n(input.pastiPersona) * n(input.pastoCosto) : 0;
 
-  // --- Pernottamento ---
-  const pernCamere = n(input.notti) * n(input.camere) * n(input.prezzoCameraNotte);
-  const pernPersone = n(input.notti) * n(input.persone) * n(input.prezzoPersonaNotte);
+  // --- Pernottamento (sezione disattivabile: conta solo se pernottamentoOn) ---
+  const pernCamere = input.pernottamentoOn ? n(input.notti) * n(input.camere) * n(input.prezzoCameraNotte) : 0;
+  const pernPersone = input.pernottamentoOn ? n(input.notti) * n(input.persone) * n(input.prezzoPersonaNotte) : 0;
   const pernottamento = pernCamere + pernPersone;
 
-  // --- Extra ---
-  const medico = n(input.medico);
+  // --- Extra (Medico: sezione disattivabile, conta solo se medicoOn) ---
+  const medico = input.medicoOn ? n(input.medico) : 0;
   // In Italia niente pedaggi (CRI esente): contano solo se estero attivo.
   const pedaggi = input.estero ? n(input.pedaggi) : 0;
   const materiale = (input.materiale || []).reduce((s, r) => s + n(r.importo), 0);
