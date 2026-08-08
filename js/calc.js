@@ -4,7 +4,8 @@
 //  Ricalca la logica dello storico foglio Excel "conto trasferte"
 //  e la estende. Produce SEMPRE due totali affiancati:
 //    • SPESA REALE  = costo effettivo sostenuto (rimborso vivo)
-//    • ADDEBITO     = km × tariffa + voci ribaltate (quello che si chiede)
+//    • ADDEBITO     = km × tariffa + le voci attive (pasti/pernottamento/
+//                     sanitari/pedaggi/materiale), quello che si chiede
 //    • MARGINE      = addebito − spesa reale
 // ============================================================
 
@@ -32,16 +33,6 @@ export const DEFAULT_IMPOSTAZIONI = {
   // AdBlue (solo mezzi diesel): stima come % dei litri di gasolio consumati.
   adBluePerc: 4,         // % del volume di gasolio
   adBluePrezzo: 1.00,    // € / litro AdBlue
-
-  // Quali voci vengono "ribaltate" (aggiunte) sull'addebito oltre al km×tariffa.
-  // Carburante e AdBlue NON si ribaltano: sono coperti dalla tariffa al km.
-  ribalta: {
-    pasti: true,
-    pernottamento: true,
-    sanitari: true,
-    pedaggi: true,
-    materiale: true,
-  },
 
   fuelDataDate: FUEL_DATA_DATE,
 };
@@ -80,7 +71,6 @@ export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
     adBluePerc: imp.adBluePerc,
     materiale: [],                 // [{ desc, importo }]
     tariffaKm: 0,                  // azzerata: si imposta con i preset o a mano
-    ribalta: { ...imp.ribalta },
   };
 }
 
@@ -121,18 +111,9 @@ export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {
   // --- SPESA REALE (costo vivo) ---
   const spesaReale = carburante + adBlue + pasti + pernottamento + sanitari + pedaggi + materiale;
 
-  // --- ADDEBITO (km × tariffa + voci ribaltate) ---
+  // --- ADDEBITO (km × tariffa + tutte le voci attive) ---
   const addebitoKm = km * n(input.tariffaKm);
-  const rib = input.ribalta || {};
-  // Retrocompatibilità: i preventivi/impostazioni salvati prima della sezione
-  // "Sanitari" avevano la voce ribaltata "medico".
-  const ribSanitari = rib.sanitari !== undefined ? rib.sanitari : (rib.medico !== undefined ? rib.medico : true);
-  const passthrough =
-    (rib.pasti ? pasti : 0) +
-    (rib.pernottamento ? pernottamento : 0) +
-    (ribSanitari ? sanitari : 0) +
-    (rib.pedaggi ? pedaggi : 0) +
-    (rib.materiale ? materiale : 0);
+  const passthrough = pasti + pernottamento + sanitari + pedaggi + materiale;
   const addebito = addebitoKm + passthrough;
 
   const margine = addebito - spesaReale;

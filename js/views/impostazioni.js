@@ -64,17 +64,8 @@ export async function renderImpostazioni(view, ctx) {
         <div class="hint">Default usato nel preventivo: totale = ore stimate × tariffa, sempre modificabile.</div></div>
       <div class="field"><label>Infermiere: tariffa oraria (€/h)</label><input type="number" step="0.5" id="infermiereTariffaOraria" value="${imp.infermiereTariffaOraria}">
         <div class="hint">Stesso principio del medico: totale = ore stimate × tariffa, sempre modificabile.</div></div>
-    </div>
-    <label class="section-t" style="margin-top:4px">Voci ribaltate sull'addebito (default)</label>
-    <div id="ribalta" style="display:flex;flex-wrap:wrap;gap:6px 20px"></div>`);
+    </div>`);
   view.appendChild(cPar);
-  const ribBox = cPar.querySelector('#ribalta');
-  const voci = [['pasti','Pasti'],['pernottamento','Pernottamento'],['pedaggi','Pedaggi/vignette (estero)'],['sanitari','Sanitari (medico/infermiere)'],['materiale','Materiale']];
-  for (const [k, lbl] of voci) {
-    const c = el(`<label class="chk"><input type="checkbox" ${imp.ribalta[k]?'checked':''}> ${lbl}</label>`);
-    c.querySelector('input').addEventListener('change', e => imp.ribalta[k] = e.target.checked);
-    ribBox.appendChild(c);
-  }
   cPar.querySelector('#pastoCosto').addEventListener('input', e => imp.pastoCosto = Number(e.target.value) || 0);
   cPar.querySelector('#tariffaKm').addEventListener('input', e => imp.tariffaKm = Number(e.target.value) || 0);
   cPar.querySelector('#adBluePerc').addEventListener('input', e => imp.adBluePerc = Number(e.target.value) || 0);

@@ -175,24 +175,6 @@ export async function renderPreventivo(view, id, ctx) {
   main.appendChild(cExtra);
   renderMateriale();
 
-  // ================= SEZIONE 7: TARIFFA =================
-  const cTar = card('Tariffa per l\'addebito', `
-    <div class="form-row">
-      <div class="field"><label>Tariffa € / km</label><input type="number" min="0" step="0.05" id="tariffaKm" value="${prev.input.tariffaKm}">
-        <div class="hint">L'addebito = km × tariffa + le voci ribaltate. Copre carburante, usura mezzo e servizio.</div></div>
-      <div class="field"><label>Preset rapidi</label>
-        <div class="pill-toggle" id="tariffa-preset">
-          <button type="button" data-t="1.15">1,15</button>
-          <button type="button" data-t="1.20">1,20</button>
-          <button type="button" data-t="1.30">1,30</button>
-        </div>
-      </div>
-    </div>
-    <label class="section-t" style="margin-top:6px">Voci ribaltate sull'addebito (a rimborso, oltre al km)</label>
-    <div id="ribalta"></div>`);
-  main.appendChild(cTar);
-  renderRibalta();
-
   const cNote = card('Note', `<textarea id="note" rows="3" placeholder="Note per il preventivo (visibili in stampa)…">${esc(prev.note || '')}</textarea>`);
   main.appendChild(cNote);
 
@@ -276,7 +258,6 @@ export async function renderPreventivo(view, id, ctx) {
   });
   bindNum('#adBluePerc', 'adBluePerc');
   bindNum('#adBluePrezzo', 'adBluePrezzo');
-  bindNum('#tariffaKm', 'tariffaKm');
 
   $('#adblue').addEventListener('change', e => {
     prev.input.adBlueOn = e.target.checked;
@@ -289,10 +270,6 @@ export async function renderPreventivo(view, id, ctx) {
     recalc();
   });
   $('#add-mat').addEventListener('click', () => { prev.input.materiale.push({ desc: '', importo: 0 }); renderMateriale(); recalc(); });
-  view.querySelector('#tariffa-preset').addEventListener('click', e => {
-    const b = e.target.closest('[data-t]'); if (!b) return;
-    prev.input.tariffaKm = Number(b.dataset.t); $('#tariffaKm').value = b.dataset.t; recalc();
-  });
 
   head.querySelector('#btn-save').addEventListener('click', save);
   head.querySelector('#btn-pdf').addEventListener('click', () => { syncItinerario(); prev.risultato = calcola(prev.input, imp); stampaPreventivo({ ...prev }, imp); });
@@ -327,6 +304,17 @@ export async function renderPreventivo(view, id, ctx) {
           <div class="hint" id="km-hint">Calcolati in automatico dalla destinazione. Puoi correggerli a mano.</div></div>
         <div class="field"></div>
       </div>
+      <div class="form-row" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)">
+        <div class="field"><label>Tariffa € / km</label><input type="number" min="0" step="0.05" id="tariffaKm" value="${prev.input.tariffaKm}">
+          <div class="hint">Totale = km × tariffa + le voci attive (pasti, pernottamento, sanitari, materiale, pedaggi).</div></div>
+        <div class="field"><label>Preset rapidi</label>
+          <div class="pill-toggle" id="tariffa-preset">
+            <button type="button" data-t="1.15">1,15</button>
+            <button type="button" data-t="1.20">1,20</button>
+            <button type="button" data-t="1.30">1,30</button>
+          </div>
+        </div>
+      </div>
       <div class="switch-row">
         <label class="switch"><input type="checkbox" id="sw-pasti" ${prev.input.pastiOn ? 'checked' : ''}><span class="slider"></span>Pasti</label>
         <label class="switch"><input type="checkbox" id="sw-pernotto" ${prev.input.pernottamentoOn ? 'checked' : ''}><span class="slider"></span>Pernottamento</label>
@@ -342,6 +330,15 @@ export async function renderPreventivo(view, id, ctx) {
     kmInput.addEventListener('input', e => {
       prev.input.kmTotali = num(e.target.value); prev.km_auto = false;
       if (prev.input.estero && pedaggioAuto) refillPedaggio();
+      recalc();
+    });
+    controls.querySelector('#tariffaKm').addEventListener('input', e => {
+      prev.input.tariffaKm = num(e.target.value); recalc();
+    });
+    controls.querySelector('#tariffa-preset').addEventListener('click', e => {
+      const b = e.target.closest('[data-t]'); if (!b) return;
+      prev.input.tariffaKm = Number(b.dataset.t);
+      controls.querySelector('#tariffaKm').value = b.dataset.t;
       recalc();
     });
     // Interruttori sezioni facoltative: off di default, la maggior parte dei
@@ -453,7 +450,7 @@ export async function renderPreventivo(view, id, ctx) {
   }
 
   // ================================================================
-  //  MATERIALE + RIBALTA
+  //  MATERIALE DI CONSUMO
   // ================================================================
   function renderMateriale() {
     const box = view.querySelector('#materiale');
@@ -470,23 +467,6 @@ export async function renderPreventivo(view, id, ctx) {
       r.querySelector('.rm').addEventListener('click', () => { prev.input.materiale.splice(i, 1); renderMateriale(); recalc(); });
       box.appendChild(r);
     });
-  }
-
-  function renderRibalta() {
-    const box = view.querySelector('#ribalta');
-    clear(box);
-    const voci = [
-      ['pasti', 'Pasti'], ['pernottamento', 'Pernottamento'],
-      ['sanitari', 'Sanitari (medico/infermiere)'], ['materiale', 'Materiale di consumo'],
-    ];
-    if (prev.input.estero) voci.splice(2, 0, ['pedaggi', 'Pedaggi/vignette']);
-    const wrap = el('<div style="display:flex;flex-wrap:wrap;gap:6px 20px"></div>');
-    for (const [k, lbl] of voci) {
-      const c = el(`<label class="chk"><input type="checkbox" ${prev.input.ribalta[k] ? 'checked' : ''}> ${lbl}</label>`);
-      c.querySelector('input').addEventListener('change', e => { prev.input.ribalta[k] = e.target.checked; recalc(); });
-      wrap.appendChild(c);
-    }
-    box.appendChild(wrap);
   }
 
   // ================================================================
@@ -514,7 +494,7 @@ export async function renderPreventivo(view, id, ctx) {
     const box = el(`<div class="tot-box">
       <div class="row"><div><div class="k">Spesa reale</div><div class="mini">costo vivo del viaggio</div></div><div class="v money">${fmtEuro(r.spesaReale)}</div></div>
       <div class="row"><div><div class="k">Addebito (km×tariffa)</div><div class="mini">${fmtKm(prev.input.kmTotali)} × ${fmtEuro(prev.input.tariffaKm)} + rimborsi</div></div><div class="v money">${fmtEuro(r.addebitoKm)}</div></div>
-      <div class="row addebito"><div><div class="k">Totale</div><div class="mini">tariffa + voci ribaltate</div></div><div class="v money">${fmtEuro(r.addebito)}</div></div>
+      <div class="row addebito"><div><div class="k">Totale</div><div class="mini">tariffa + voci attive</div></div><div class="v money">${fmtEuro(r.addebito)}</div></div>
       <div class="row margine"><div><div class="k">Margine</div><div class="mini">${r.margineperc!=null?fmtNum(r.margineperc,0)+'%':''}${r.tariffaEffettiva?` · ${fmtEuro(r.tariffaEffettiva)}/km eff.`:''}</div></div><div class="v money ${r.margine>=0?'pos':'neg'}">${fmtEuro(r.margine)}</div></div>
     </div>`);
     summaryCol.appendChild(box);

@@ -156,7 +156,6 @@ function mergeImpostazioni(dati) {
   return {
     ...structuredClone(DEFAULT_IMPOSTAZIONI),
     ...dati,
-    ribalta: { ...DEFAULT_IMPOSTAZIONI.ribalta, ...(dati.ribalta || {}) },
     mezzi: Array.isArray(dati.mezzi) && dati.mezzi.length ? dati.mezzi : DEFAULT_IMPOSTAZIONI.mezzi,
     // la tabella prezzi carburante personalizzata è opzionale
     prezziCustom: dati.prezziCustom || null,
