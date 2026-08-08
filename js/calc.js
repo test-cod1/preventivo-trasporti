@@ -34,9 +34,10 @@ export const DEFAULT_IMPOSTAZIONI = {
 };
 
 // ---- Input di default per un nuovo preventivo --------------------------
-// Un nuovo preventivo parte AZZERATO: l'unica voce precompilata è il
-// costo del pasto a persona (una costante di listino). Tutto il resto è 0,
-// così l'operatore compila solo ciò che serve per il viaggio specifico.
+// Un nuovo preventivo parte AZZERATO, tranne le voci di listino precompilate
+// (costo pasto a persona, tariffa km): così l'operatore compila solo ciò che
+// serve per il viaggio specifico, senza rischiare di stampare un preventivo
+// con tariffa km a 0€ per dimenticanza.
 export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
   return {
     kmTotali: 0,
@@ -64,7 +65,7 @@ export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
     pedaggi: 0,             // pedaggi/vignette esteri (0 e nascosti in Italia)
     materiale: [],                 // [{ desc, importo }]
     materialeOn: false,     // sezione Materiale di consumo disattivata di default
-    tariffaKm: 0,                  // azzerata: si imposta con i preset o a mano
+    tariffaKm: imp.tariffaKm,      // precompilata dal default in Impostazioni, modificabile con preset o a mano
   };
 }
 
