@@ -62,12 +62,14 @@ export async function renderImpostazioni(view, ctx) {
     <div class="form-row three">
       <div class="field"><label>Medico: tariffa oraria (€/h)</label><input type="number" step="0.5" id="medicoTariffaOraria" value="${imp.medicoTariffaOraria}">
         <div class="hint">Default usato nel preventivo: totale = ore stimate × tariffa, sempre modificabile.</div></div>
+      <div class="field"><label>Infermiere: tariffa oraria (€/h)</label><input type="number" step="0.5" id="infermiereTariffaOraria" value="${imp.infermiereTariffaOraria}">
+        <div class="hint">Stesso principio del medico: totale = ore stimate × tariffa, sempre modificabile.</div></div>
     </div>
     <label class="section-t" style="margin-top:4px">Voci ribaltate sull'addebito (default)</label>
     <div id="ribalta" style="display:flex;flex-wrap:wrap;gap:6px 20px"></div>`);
   view.appendChild(cPar);
   const ribBox = cPar.querySelector('#ribalta');
-  const voci = [['pasti','Pasti'],['pernottamento','Pernottamento'],['pedaggi','Pedaggi/vignette (estero)'],['medico','Medico'],['materiale','Materiale']];
+  const voci = [['pasti','Pasti'],['pernottamento','Pernottamento'],['pedaggi','Pedaggi/vignette (estero)'],['sanitari','Sanitari (medico/infermiere)'],['materiale','Materiale']];
   for (const [k, lbl] of voci) {
     const c = el(`<label class="chk"><input type="checkbox" ${imp.ribalta[k]?'checked':''}> ${lbl}</label>`);
     c.querySelector('input').addEventListener('change', e => imp.ribalta[k] = e.target.checked);
@@ -79,6 +81,7 @@ export async function renderImpostazioni(view, ctx) {
   cPar.querySelector('#adBluePrezzo').addEventListener('input', e => imp.adBluePrezzo = Number(e.target.value) || 0);
   cPar.querySelector('#pedaggiEsteroKm').addEventListener('input', e => imp.pedaggiEsteroKm = Number(e.target.value) || 0);
   cPar.querySelector('#medicoTariffaOraria').addEventListener('input', e => imp.medicoTariffaOraria = Number(e.target.value) || 0);
+  cPar.querySelector('#infermiereTariffaOraria').addEventListener('input', e => imp.infermiereTariffaOraria = Number(e.target.value) || 0);
 
   // ---------- Prezzi carburante ----------
   const cFuel = card(`Prezzi carburante di riferimento`, `

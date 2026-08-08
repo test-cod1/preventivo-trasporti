@@ -26,7 +26,8 @@ export const DEFAULT_IMPOSTAZIONI = {
 
   pastoCosto: 25,        // € a pasto a persona (Excel: 25)
   tariffaKm: 1.20,       // € / km per l'addebito (Excel usava 1,15 e 1,20)
-  medicoTariffaOraria: 50, // €/ora indicativa per il medico al seguito (modificabile)
+  medicoTariffaOraria: 50,      // €/ora indicativa per il medico (modificabile)
+  infermiereTariffaOraria: 30,  // €/ora indicativa per l'infermiere (modificabile)
 
   // AdBlue (solo mezzi diesel): stima come % dei litri di gasolio consumati.
   adBluePerc: 4,         // % del volume di gasolio
@@ -37,7 +38,7 @@ export const DEFAULT_IMPOSTAZIONI = {
   ribalta: {
     pasti: true,
     pernottamento: true,
-    medico: true,
+    sanitari: true,
     pedaggi: true,
     materiale: true,
   },
@@ -64,10 +65,14 @@ export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
     prezzoCameraNotte: 0,          // € a camera a notte
     prezzoPersonaNotte: 0,         // € a persona a notte (opzionale)
     pernottamentoOn: false, // sezione Pernottamento disattivata di default
+    sanitariOn: false,      // sezione Sanitari (medico/infermiere) disattivata di default
+    medicoOre: 0,           // ore stimate dalla durata del percorso, condivise tra i ruoli (modificabili)
+    medicoOn: true,         // ruolo Medico incluso di default (se la sezione è attiva)
+    medicoOraria: imp.medicoTariffaOraria, // €/ora medico, modificabile
     medico: 0,              // totale medico (auto = ore x tariffa oraria, sempre modificabile)
-    medicoOre: 0,           // ore stimate dalla durata del percorso (modificabili)
-    medicoOraria: imp.medicoTariffaOraria, // €/ora, modificabile
-    medicoOn: false,        // sezione Medico disattivata di default
+    infermiereOn: false,    // ruolo Infermiere incluso di default
+    infermiereOraria: imp.infermiereTariffaOraria, // €/ora infermiere, modificabile
+    infermiere: 0,          // totale infermiere (auto = ore x tariffa oraria, sempre modificabile)
     estero: false,          // viaggio fuori Italia -> abilita i pedaggi/vignette
     pedaggi: 0,             // pedaggi/vignette esteri (0 e nascosti in Italia)
     adBlueOn: false,
@@ -104,22 +109,28 @@ export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {
   const pernPersone = input.pernottamentoOn ? n(input.notti) * n(input.persone) * n(input.prezzoPersonaNotte) : 0;
   const pernottamento = pernCamere + pernPersone;
 
-  // --- Extra (Medico: sezione disattivabile, conta solo se medicoOn) ---
-  const medico = input.medicoOn ? n(input.medico) : 0;
+  // --- Sanitari (Medico + Infermiere): sezione disattivabile, ogni ruolo
+  // scelto indipendentemente (uno solo, entrambi, o nessuno anche a sezione attiva) ---
+  const medico = (input.sanitariOn && input.medicoOn) ? n(input.medico) : 0;
+  const infermiere = (input.sanitariOn && input.infermiereOn) ? n(input.infermiere) : 0;
+  const sanitari = medico + infermiere;
   // In Italia niente pedaggi (CRI esente): contano solo se estero attivo.
   const pedaggi = input.estero ? n(input.pedaggi) : 0;
   const materiale = (input.materiale || []).reduce((s, r) => s + n(r.importo), 0);
 
   // --- SPESA REALE (costo vivo) ---
-  const spesaReale = carburante + adBlue + pasti + pernottamento + medico + pedaggi + materiale;
+  const spesaReale = carburante + adBlue + pasti + pernottamento + sanitari + pedaggi + materiale;
 
   // --- ADDEBITO (km × tariffa + voci ribaltate) ---
   const addebitoKm = km * n(input.tariffaKm);
   const rib = input.ribalta || {};
+  // Retrocompatibilità: i preventivi/impostazioni salvati prima della sezione
+  // "Sanitari" avevano la voce ribaltata "medico".
+  const ribSanitari = rib.sanitari !== undefined ? rib.sanitari : (rib.medico !== undefined ? rib.medico : true);
   const passthrough =
     (rib.pasti ? pasti : 0) +
     (rib.pernottamento ? pernottamento : 0) +
-    (rib.medico ? medico : 0) +
+    (ribSanitari ? sanitari : 0) +
     (rib.pedaggi ? pedaggi : 0) +
     (rib.materiale ? materiale : 0);
   const addebito = addebitoKm + passthrough;
@@ -129,7 +140,7 @@ export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {
   return {
     litri, carburante, adBlue, litriAdBlue,
     pasti, pernottamento, pernCamere, pernPersone,
-    medico, pedaggi, materiale,
+    medico, infermiere, sanitari, pedaggi, materiale,
     spesaReale,
     addebitoKm, passthrough, addebito,
     margine,

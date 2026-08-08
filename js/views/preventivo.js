@@ -18,10 +18,17 @@ export async function renderPreventivo(view, id, ctx) {
     const rawInput = prev.input || {};
     prev.input = { ...nuovoInput(imp), ...rawInput };
     // Compatibilità con preventivi salvati prima degli interruttori Pasti/Pernottamento/
-    // Medico: se il flag non esisteva ancora, la sezione era sempre attiva -> resta attiva.
+    // Sanitari: se il flag non esisteva ancora, la sezione era sempre attiva -> resta attiva.
     if (rawInput.pastiOn === undefined) prev.input.pastiOn = true;
     if (rawInput.pernottamentoOn === undefined) prev.input.pernottamentoOn = true;
+    // "Sanitari" nasce dalla vecchia sezione "Medico al seguito": il suo interruttore
+    // era prima memorizzato in medicoOn. Se assente, eredita da lì (o resta attivo se
+    // il preventivo è ancora più vecchio, precedente a qualunque interruttore).
+    if (rawInput.sanitariOn === undefined) prev.input.sanitariOn = rawInput.medicoOn !== undefined ? rawInput.medicoOn : true;
+    // Il ruolo Medico era l'unico esistente prima dei due ruoli separati: resta incluso
+    // di default per i preventivi vecchi. L'Infermiere è un ruolo nuovo, assente prima.
     if (rawInput.medicoOn === undefined) prev.input.medicoOn = true;
+    if (rawInput.infermiereOn === undefined) prev.input.infermiereOn = false;
     prev.tappe = prev.tappe || [];
     prev.partenza = prev.input.partenza || defaultPartenza();
   } else {
@@ -40,8 +47,9 @@ export async function renderPreventivo(view, id, ctx) {
   let prezzoAuto = prev.input._prezzoAuto !== false; // di default il prezzo segue il Paese
   let pedaggioAuto = prev.input._pedaggioAuto !== false; // stima pedaggi estero attiva finché non la modifichi a mano
   let esteroAuto = prev.input._esteroAuto !== false;     // il flag "estero" segue la destinazione finché non lo forzi a mano
-  let medicoOreAuto = prev.input._medicoOreAuto !== false; // le ore medico seguono la durata del percorso finché non le tocchi
-  let medicoAuto = prev.input._medicoAuto !== false;       // il totale medico = ore × tariffa finché non lo tocchi
+  let medicoOreAuto = prev.input._medicoOreAuto !== false; // le ore sanitari seguono la durata del percorso finché non le tocchi
+  let medicoTotAuto = prev.input._medicoTotAuto !== false;         // il totale medico = ore × tariffa finché non lo tocchi
+  let infermiereTotAuto = prev.input._infermiereTotAuto !== false; // il totale infermiere = ore × tariffa finché non lo tocchi
 
   // ---- layout ----
   const head = el(`<div class="page-head">
@@ -108,17 +116,35 @@ export async function renderPreventivo(view, id, ctx) {
     <div class="field"><label>€ a persona / notte (opzionale, alternativo alle camere)</label><input type="number" min="0" step="0.5" id="prezzoPersonaNotte" value="${prev.input.prezzoPersonaNotte}"></div>`);
   main.appendChild(cPern);
 
-  // ================= SEZIONE 6: MEDICO AL SEGUITO =================
-  const cMedico = card('Medico al seguito', `
+  // ================= SEZIONE 6: SANITARI (MEDICO / INFERMIERE) =================
+  const cMedico = card('Sanitari', `
     <div class="form-row three">
       <div class="field"><label>Ore stimate <span class="badge-auto" id="badge-medico-ore">stima</span></label>
         <input type="number" min="0" step="0.5" id="medicoOre" value="${prev.input.medicoOre || ''}">
         <div class="hint" id="medico-ore-hint"></div></div>
+      <div class="field"></div>
+      <div class="field"></div>
+    </div>
+    <label class="section-t" style="margin-top:2px">Personale sanitario — puoi selezionare uno o entrambi</label>
+    <div class="form-row three">
+      <div class="field"><label>&nbsp;</label>
+        <label class="chk"><input type="checkbox" id="ruolo-medico" ${prev.input.medicoOn?'checked':''}> Medico</label>
+      </div>
       <div class="field"><label>Tariffa oraria (€/h)</label>
         <input type="number" min="0" step="0.5" id="medicoOraria" value="${prev.input.medicoOraria}"></div>
       <div class="field"><label>Totale medico (€) <span class="badge-auto" id="badge-medico-tot">calcolato</span></label>
         <input type="number" min="0" step="0.5" id="medico" value="${prev.input.medico || ''}">
         <div class="hint" id="medico-tot-hint"></div></div>
+    </div>
+    <div class="form-row three">
+      <div class="field"><label>&nbsp;</label>
+        <label class="chk"><input type="checkbox" id="ruolo-infermiere" ${prev.input.infermiereOn?'checked':''}> Infermiere</label>
+      </div>
+      <div class="field"><label>Tariffa oraria (€/h)</label>
+        <input type="number" min="0" step="0.5" id="infermiereOraria" value="${prev.input.infermiereOraria}"></div>
+      <div class="field"><label>Totale infermiere (€) <span class="badge-auto" id="badge-infermiere-tot">calcolato</span></label>
+        <input type="number" min="0" step="0.5" id="infermiere" value="${prev.input.infermiere || ''}">
+        <div class="hint" id="infermiere-tot-hint"></div></div>
     </div>`);
   main.appendChild(cMedico);
 
@@ -210,19 +236,42 @@ export async function renderPreventivo(view, id, ctx) {
     medicoOreAuto = false;
     const b = $('#badge-medico-ore'); if (b) b.style.display = 'none';
     const h = $('#medico-ore-hint'); if (h) h.textContent = 'Valore inserito a mano.';
-    if (medicoAuto) refillMedicoTotale();
+    if (medicoTotAuto) refillMedicoTotale();
+    if (infermiereTotAuto) refillInfermiereTotale();
     recalc();
   });
   $('#medicoOraria').addEventListener('input', e => {
     prev.input.medicoOraria = num(e.target.value);
-    if (medicoAuto) refillMedicoTotale();
+    if (medicoTotAuto) refillMedicoTotale();
     recalc();
   });
   $('#medico').addEventListener('input', e => {
     prev.input.medico = num(e.target.value);
-    medicoAuto = false;
+    medicoTotAuto = false;
     const b = $('#badge-medico-tot'); if (b) b.style.display = 'none';
     const h = $('#medico-tot-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    recalc();
+  });
+  $('#infermiereOraria').addEventListener('input', e => {
+    prev.input.infermiereOraria = num(e.target.value);
+    if (infermiereTotAuto) refillInfermiereTotale();
+    recalc();
+  });
+  $('#infermiere').addEventListener('input', e => {
+    prev.input.infermiere = num(e.target.value);
+    infermiereTotAuto = false;
+    const b = $('#badge-infermiere-tot'); if (b) b.style.display = 'none';
+    const h = $('#infermiere-tot-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    recalc();
+  });
+  $('#ruolo-medico').addEventListener('change', e => {
+    prev.input.medicoOn = e.target.checked;
+    setRuoloAbilitato('medico', e.target.checked);
+    recalc();
+  });
+  $('#ruolo-infermiere').addEventListener('change', e => {
+    prev.input.infermiereOn = e.target.checked;
+    setRuoloAbilitato('infermiere', e.target.checked);
     recalc();
   });
   bindNum('#adBluePerc', 'adBluePerc');
@@ -281,7 +330,7 @@ export async function renderPreventivo(view, id, ctx) {
       <div class="switch-row">
         <label class="switch"><input type="checkbox" id="sw-pasti" ${prev.input.pastiOn ? 'checked' : ''}><span class="slider"></span>Pasti</label>
         <label class="switch"><input type="checkbox" id="sw-pernotto" ${prev.input.pernottamentoOn ? 'checked' : ''}><span class="slider"></span>Pernottamento</label>
-        <label class="switch"><input type="checkbox" id="sw-medico" ${prev.input.medicoOn ? 'checked' : ''}><span class="slider"></span>Medico al seguito</label>
+        <label class="switch"><input type="checkbox" id="sw-sanitari" ${prev.input.sanitariOn ? 'checked' : ''}><span class="slider"></span>Sanitari</label>
       </div>
     </div>`);
     itinBody.appendChild(controls);
@@ -299,7 +348,7 @@ export async function renderPreventivo(view, id, ctx) {
     // trasporti non le usa. Attivandoli si apre anche il relativo pannello.
     controls.querySelector('#sw-pasti').addEventListener('change', e => setSezione('pastiOn', cEq, e.target.checked));
     controls.querySelector('#sw-pernotto').addEventListener('change', e => setSezione('pernottamentoOn', cPern, e.target.checked));
-    controls.querySelector('#sw-medico').addEventListener('change', e => setSezione('medicoOn', cMedico, e.target.checked));
+    controls.querySelector('#sw-sanitari').addEventListener('change', e => setSezione('sanitariOn', cMedico, e.target.checked));
   }
 
   function partenzaRow() {
@@ -428,7 +477,7 @@ export async function renderPreventivo(view, id, ctx) {
     clear(box);
     const voci = [
       ['pasti', 'Pasti'], ['pernottamento', 'Pernottamento'],
-      ['medico', 'Medico al seguito'], ['materiale', 'Materiale di consumo'],
+      ['sanitari', 'Sanitari (medico/infermiere)'], ['materiale', 'Materiale di consumo'],
     ];
     if (prev.input.estero) voci.splice(2, 0, ['pedaggi', 'Pedaggi/vignette']);
     const wrap = el('<div style="display:flex;flex-wrap:wrap;gap:6px 20px"></div>');
@@ -457,6 +506,7 @@ export async function renderPreventivo(view, id, ctx) {
       ${r.pernottamento > 0 ? line('Pernottamento', r.pernottamento) : ''}
       ${r.pedaggi > 0 ? line('Pedaggi/vignette', r.pedaggi) : ''}
       ${r.medico > 0 ? line(prev.input.medicoOre ? `Medico (${fmtNum(prev.input.medicoOre,1)}h × ${fmtEuro(prev.input.medicoOraria)}/h)` : 'Medico', r.medico) : ''}
+      ${r.infermiere > 0 ? line(prev.input.medicoOre ? `Infermiere (${fmtNum(prev.input.medicoOre,1)}h × ${fmtEuro(prev.input.infermiereOraria)}/h)` : 'Infermiere', r.infermiere) : ''}
       ${r.materiale > 0 ? line('Materiale', r.materiale) : ''}
     </div></div>`);
     summaryCol.appendChild(bd);
@@ -488,7 +538,7 @@ export async function renderPreventivo(view, id, ctx) {
       km_totali: prev.km_totali,
       paese_dest: prev.paese_dest ?? null,
       paese_dest_nome: prev.paese_dest_nome ?? null,
-      input: { ...prev.input, partenza: prev.partenza, _prezzoAuto: prezzoAuto, _pedaggioAuto: pedaggioAuto, _esteroAuto: esteroAuto, _medicoOreAuto: medicoOreAuto, _medicoAuto: medicoAuto },
+      input: { ...prev.input, partenza: prev.partenza, _prezzoAuto: prezzoAuto, _pedaggioAuto: pedaggioAuto, _esteroAuto: esteroAuto, _medicoOreAuto: medicoOreAuto, _medicoTotAuto: medicoTotAuto, _infermiereTotAuto: infermiereTotAuto },
       risultato: prev.risultato,
     };
     if (prev.id) rec.id = prev.id;
@@ -561,7 +611,7 @@ export async function renderPreventivo(view, id, ctx) {
   function initSezioni() {
     cEq.style.display = prev.input.pastiOn ? '' : 'none';
     cPern.style.display = prev.input.pernottamentoOn ? '' : 'none';
-    cMedico.style.display = prev.input.medicoOn ? '' : 'none';
+    cMedico.style.display = prev.input.sanitariOn ? '' : 'none';
   }
   // Attiva/disattiva la sezione pedaggi in base al viaggio estero.
   function setEstero(on) {
@@ -579,14 +629,16 @@ export async function renderPreventivo(view, id, ctx) {
     const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = 'none';
     const h = view.querySelector('#pedaggio-hint'); if (h) h.textContent = 'Valore inserito a mano.';
   }
-  // Ore stimate dalla durata del percorso (arrotondate alla mezz'ora).
+  // Ore stimate dalla durata del percorso (arrotondate alla mezz'ora), condivise
+  // dai due ruoli sanitari (fanno lo stesso viaggio).
   function refillMedicoOre(durationMin) {
     const ore = Math.round((num(durationMin) / 60) * 2) / 2;
     prev.input.medicoOre = ore;
     const inp = view.querySelector('#medicoOre'); if (inp) inp.value = ore || '';
     const badge = view.querySelector('#badge-medico-ore'); if (badge) badge.style.display = '';
     const h = view.querySelector('#medico-ore-hint'); if (h) h.innerHTML = `≈ durata del percorso. Stima, modificabile.`;
-    if (medicoAuto) refillMedicoTotale();
+    if (medicoTotAuto) refillMedicoTotale();
+    if (infermiereTotAuto) refillInfermiereTotale();
   }
   function refillMedicoTotale() {
     const ore = num(prev.input.medicoOre);
@@ -597,18 +649,44 @@ export async function renderPreventivo(view, id, ctx) {
     const h = view.querySelector('#medico-tot-hint');
     if (h) h.innerHTML = `= ${fmtNum(ore,1)} h × ${fmtEuro(tariffa)}/h. Calcolato, modificabile.`;
   }
+  function refillInfermiereTotale() {
+    const ore = num(prev.input.medicoOre);
+    const tariffa = num(prev.input.infermiereOraria);
+    prev.input.infermiere = Math.round(ore * tariffa * 100) / 100;
+    const inp = view.querySelector('#infermiere'); if (inp) inp.value = prev.input.infermiere || '';
+    const badge = view.querySelector('#badge-infermiere-tot'); if (badge) badge.style.display = '';
+    const h = view.querySelector('#infermiere-tot-hint');
+    if (h) h.innerHTML = `= ${fmtNum(ore,1)} h × ${fmtEuro(tariffa)}/h. Calcolato, modificabile.`;
+  }
+  // Abilita/disabilita i campi tariffa e totale del ruolo (medico/infermiere)
+  // in base al checkbox: se il ruolo non è incluso i campi sono disattivati.
+  function setRuoloAbilitato(ruolo, on) {
+    const tariffaInp = view.querySelector(ruolo === 'medico' ? '#medicoOraria' : '#infermiereOraria');
+    const totInp = view.querySelector(ruolo === 'medico' ? '#medico' : '#infermiere');
+    if (tariffaInp) tariffaInp.disabled = !on;
+    if (totInp) totInp.disabled = !on;
+  }
   function initMedico() {
     if (!medicoOreAuto) {
       const badge = view.querySelector('#badge-medico-ore'); if (badge) badge.style.display = 'none';
       const h = view.querySelector('#medico-ore-hint'); if (h) h.textContent = 'Valore inserito a mano.';
     }
-    if (!medicoAuto) {
+    if (!medicoTotAuto) {
       const badge = view.querySelector('#badge-medico-tot'); if (badge) badge.style.display = 'none';
       const h = view.querySelector('#medico-tot-hint'); if (h) h.textContent = 'Valore inserito a mano.';
     } else if (prev.input.medicoOre) {
       const h = view.querySelector('#medico-tot-hint');
       if (h) h.innerHTML = `= ${fmtNum(prev.input.medicoOre,1)} h × ${fmtEuro(prev.input.medicoOraria)}/h. Calcolato, modificabile.`;
     }
+    if (!infermiereTotAuto) {
+      const badge = view.querySelector('#badge-infermiere-tot'); if (badge) badge.style.display = 'none';
+      const h = view.querySelector('#infermiere-tot-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    } else if (prev.input.medicoOre) {
+      const h = view.querySelector('#infermiere-tot-hint');
+      if (h) h.innerHTML = `= ${fmtNum(prev.input.medicoOre,1)} h × ${fmtEuro(prev.input.infermiereOraria)}/h. Calcolato, modificabile.`;
+    }
+    setRuoloAbilitato('medico', prev.input.medicoOn);
+    setRuoloAbilitato('infermiere', prev.input.infermiereOn);
   }
   // Titolo automatico = destinazione finale semplificata (solo al salvataggio).
   function titoloDaDestinazione() {
