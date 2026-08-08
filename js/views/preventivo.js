@@ -17,6 +17,7 @@ export async function renderPreventivo(view, id, ctx) {
     if (!prev) { view.appendChild(el('<div class="empty-state"><div class="big">❓</div><p>Preventivo non trovato.</p></div>')); return; }
     prev.input = { ...nuovoInput(imp), ...(prev.input || {}) };
     prev.tappe = prev.tappe || [];
+    prev.partenza = prev.input.partenza || defaultPartenza();
   } else {
     prev = {
       titolo: '', note: '',
@@ -24,19 +25,21 @@ export async function renderPreventivo(view, id, ctx) {
       andata_ritorno: true, km_auto: true,
       input: nuovoInput(imp),
       paese_dest: 'IT', paese_dest_nome: 'Italia',
+      partenza: defaultPartenza(),
     };
     // prezzo iniziale = Italia diesel
     prev.input.prezzoCarburante = prezzoRiferimento('IT', prev.input.alimentazione, tabella(imp));
   }
-  let prezzoAuto = prev._prezzoAuto !== false; // di default il prezzo segue il Paese
-  let pedaggioAuto = prev._pedaggioAuto !== false; // stima pedaggi estero attiva finché non la modifichi a mano
-  let esteroAuto = prev._esteroAuto !== false;     // il flag "estero" segue la destinazione finché non lo forzi a mano
+  // I flag UI e la partenza vivono dentro input (jsonb) per persistere senza colonne dedicate.
+  let prezzoAuto = prev.input._prezzoAuto !== false; // di default il prezzo segue il Paese
+  let pedaggioAuto = prev.input._pedaggioAuto !== false; // stima pedaggi estero attiva finché non la modifichi a mano
+  let esteroAuto = prev.input._esteroAuto !== false;     // il flag "estero" segue la destinazione finché non lo forzi a mano
 
   // ---- layout ----
   const head = el(`<div class="page-head">
     <div>
       <h1>${id ? 'Modifica preventivo' : 'Nuovo preventivo'}</h1>
-      <p>Partenza fissa: <b>${esc(CONFIG.partenza.label)}</b></p>
+      <p>Partenza modificabile — default: <b>${esc(CONFIG.partenza.label)}</b></p>
     </div>
     <div class="inline">
       <a class="btn" href="#/preventivi">← Elenco</a>
@@ -215,11 +218,8 @@ export async function renderPreventivo(view, id, ctx) {
   function renderItinerario() {
     clear(itinBody);
     const box = el('<div class="tappe"></div>');
-    // partenza fissa
-    box.appendChild(el(`<div class="tappa fissa">
-      <div class="marker">P</div>
-      <div class="body"><div class="locked">📍 ${esc(CONFIG.partenza.label)}</div></div>
-    </div>`));
+    // partenza (modificabile, default sede CRI)
+    box.appendChild(partenzaRow());
     // tappe destinazione
     prev.tappe.forEach((t, i) => box.appendChild(tappaRow(t, i)));
     itinBody.appendChild(box);
@@ -247,6 +247,28 @@ export async function renderPreventivo(view, id, ctx) {
       if (prev.input.estero && pedaggioAuto) refillPedaggio();
       recalc();
     });
+  }
+
+  function partenzaRow() {
+    const p = prev.partenza;
+    const row = el(`<div class="tappa fissa">
+      <div class="marker">P</div>
+      <div class="body">
+        <input type="text" placeholder="Partenza (indirizzo)…" value="${esc(p.label || '')}">
+        <div class="ac" style="display:none"></div>
+      </div>
+      <button class="rm" title="Ripristina sede CRI" type="button">↺</button>
+    </div>`);
+    const input = row.querySelector('input');
+    const acBox = row.querySelector('.ac');
+    attachAutocomplete(input, acBox, (sel) => {
+      Object.assign(prev.partenza, sel);
+      input.value = sel.label;
+      autoCalcolaKm();
+    });
+    input.addEventListener('input', () => { prev.partenza.label = input.value; prev.partenza.lon = prev.partenza.lat = null; });
+    row.querySelector('.rm').addEventListener('click', () => { prev.partenza = defaultPartenza(); renderItinerario(); autoCalcolaKm(); });
+    return row;
   }
 
   function tappaRow(t, i) {
@@ -290,18 +312,21 @@ export async function renderPreventivo(view, id, ctx) {
     autoCalcolaKm(); // km automatici appena c'è la destinazione
   }
 
-  // Ricalcola i km/percorso appena c'è una destinazione con coordinate.
+  // Ricalcola i km/percorso appena c'è partenza + destinazione con coordinate.
   function autoCalcolaKm() {
-    const hasCoords = prev.tappe.some(t => Number.isFinite(t.lon) && Number.isFinite(t.lat));
-    if (hasCoords) calcolaKm({ auto: true });
+    const partOk = Number.isFinite(prev.partenza.lon) && Number.isFinite(prev.partenza.lat);
+    const hasDest = prev.tappe.some(t => Number.isFinite(t.lon) && Number.isFinite(t.lat));
+    if (partOk && hasDest) calcolaKm({ auto: true });
   }
 
   async function calcolaKm({ auto = false } = {}) {
     const btn = view.querySelector('#calc-km');
+    const part = prev.partenza;
+    if (!Number.isFinite(part.lon) || !Number.isFinite(part.lat)) { if (!auto) toast('Seleziona una partenza valida dall\'elenco.', 'err'); return; }
     const stops = prev.tappe.filter(t => Number.isFinite(t.lon) && Number.isFinite(t.lat));
     if (!stops.length) { if (!auto) toast('Seleziona almeno una destinazione dall\'elenco suggerimenti.', 'err'); return; }
-    const coords = [[CONFIG.partenza.lon, CONFIG.partenza.lat], ...stops.map(t => [t.lon, t.lat])];
-    if (prev.andata_ritorno) coords.push([CONFIG.partenza.lon, CONFIG.partenza.lat]);
+    const coords = [[part.lon, part.lat], ...stops.map(t => [t.lon, t.lat])];
+    if (prev.andata_ritorno) coords.push([part.lon, part.lat]);
     const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Calcolo…';
     try {
       const r = await route(coords);
@@ -399,13 +424,25 @@ export async function renderPreventivo(view, id, ctx) {
     prev.titolo = titoloDaDestinazione();
     prev.risultato = calcola(prev.input, imp);
     prev.km_totali = prev.input.kmTotali;
-    prev._prezzoAuto = prezzoAuto;
-    prev._pedaggioAuto = pedaggioAuto;
-    prev._esteroAuto = esteroAuto;
+    // record con SOLO colonne reali; partenza e flag UI dentro input (jsonb)
+    const rec = {
+      titolo: prev.titolo,
+      note: prev.note ?? null,
+      tappe: prev.tappe || [],
+      andata_ritorno: prev.andata_ritorno,
+      km_auto: prev.km_auto,
+      km_totali: prev.km_totali,
+      paese_dest: prev.paese_dest ?? null,
+      paese_dest_nome: prev.paese_dest_nome ?? null,
+      input: { ...prev.input, partenza: prev.partenza, _prezzoAuto: prezzoAuto, _pedaggioAuto: pedaggioAuto, _esteroAuto: esteroAuto },
+      risultato: prev.risultato,
+    };
+    if (prev.id) rec.id = prev.id;
+    if (prev.created_at) rec.created_at = prev.created_at;
     const btn = head.querySelector('#btn-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvo…';
     try {
-      const saved = await preventivi.save(cleanForSave(prev));
+      const saved = await preventivi.save(rec);
       toast('Preventivo salvato', 'ok');
       prev.id = saved.id;
       ctx.go(`#/preventivo/${saved.id}`);
@@ -523,9 +560,13 @@ function emptyTappa() { return { label: '', lon: null, lat: null, iso2: null, is
 function tabella(imp) { return imp.prezziCustom || undefined; }
 function num(v) { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) ? n : 0; }
 function shorten(s) { return String(s).split(',')[0].trim(); }
-function cleanForSave(p) {
-  const { _prezzoAuto, ...rest } = p;
-  return { ...rest, _prezzoAuto };
+function defaultPartenza() {
+  return {
+    label: CONFIG.partenza.indirizzo || CONFIG.partenza.label,
+    lon: CONFIG.partenza.lon,
+    lat: CONFIG.partenza.lat,
+    iso2: 'IT', iso3: 'ITA', paese: 'Italia',
+  };
 }
 function flag(iso2) {
   if (!iso2 || iso2.length !== 2) return '🏳️';

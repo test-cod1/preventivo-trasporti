@@ -16,10 +16,11 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
   const r = calcola(prev.input || {}, imp);
   const inp = prev.input || {};
 
-  // Itinerario completo: partenza fissa -> tappe -> (rientro se a/r)
+  // Itinerario completo: partenza -> tappe -> (rientro se a/r)
+  const part = prev.partenza || (prev.input && prev.input.partenza) || CONFIG.partenza;
   const dest = (prev.tappe || []).filter(t => t && t.label);
-  const itinerario = [{ label: CONFIG.partenza.label }, ...dest];
-  if (prev.andata_ritorno !== false) itinerario.push({ label: CONFIG.partenza.label + ' (rientro)' });
+  const itinerario = [{ label: part.label }, ...dest];
+  if (prev.andata_ritorno !== false) itinerario.push({ label: part.label + ' (rientro)' });
 
   const righeTappe = itinerario.map((t, i) =>
     `<tr><td>${i === 0 ? 'Partenza' : (i === itinerario.length - 1 ? 'Arrivo' : 'Tappa ' + i)}</td><td>${esc(t.label)}</td></tr>`

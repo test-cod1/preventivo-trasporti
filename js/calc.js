@@ -45,17 +45,20 @@ export const DEFAULT_IMPOSTAZIONI = {
 };
 
 // ---- Input di default per un nuovo preventivo --------------------------
+// Un nuovo preventivo parte AZZERATO: l'unica voce precompilata è il
+// costo del pasto a persona (una costante di listino). Tutto il resto è 0,
+// così l'operatore compila solo ciò che serve per il viaggio specifico.
 export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
   return {
     kmTotali: 0,
     mezzoId: imp.mezzi[0]?.id || 'ambulanza',
     alimentazione: imp.mezzi[0]?.alimentazione || 'diesel',
     prezzoCarburante: null,        // €/l, precompilato dal Paese di destinazione
-    persone: 3,
-    pastiPersona: 4,
-    pastoCosto: imp.pastoCosto,
+    persone: 0,
+    pastiPersona: 0,
+    pastoCosto: imp.pastoCosto,    // UNICA voce non azzerata
     notti: 0,
-    camere: 1,
+    camere: 0,
     prezzoCameraNotte: 0,          // € a camera a notte
     prezzoPersonaNotte: 0,         // € a persona a notte (opzionale)
     medico: 0,
@@ -65,7 +68,7 @@ export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
     adBluePrezzo: imp.adBluePrezzo,
     adBluePerc: imp.adBluePerc,
     materiale: [],                 // [{ desc, importo }]
-    tariffaKm: imp.tariffaKm,
+    tariffaKm: 0,                  // azzerata: si imposta con i preset o a mano
     ribalta: { ...imp.ribalta },
   };
 }
