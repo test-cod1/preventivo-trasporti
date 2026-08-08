@@ -514,7 +514,7 @@ export async function renderPreventivo(view, id, ctx) {
     const box = el(`<div class="tot-box">
       <div class="row"><div><div class="k">Spesa reale</div><div class="mini">costo vivo del viaggio</div></div><div class="v money">${fmtEuro(r.spesaReale)}</div></div>
       <div class="row"><div><div class="k">Addebito (km×tariffa)</div><div class="mini">${fmtKm(prev.input.kmTotali)} × ${fmtEuro(prev.input.tariffaKm)} + rimborsi</div></div><div class="v money">${fmtEuro(r.addebitoKm)}</div></div>
-      <div class="row addebito"><div><div class="k">Importo da richiedere</div><div class="mini">tariffa + voci ribaltate</div></div><div class="v money">${fmtEuro(r.addebito)}</div></div>
+      <div class="row addebito"><div><div class="k">Totale</div><div class="mini">tariffa + voci ribaltate</div></div><div class="v money">${fmtEuro(r.addebito)}</div></div>
       <div class="row margine"><div><div class="k">Margine</div><div class="mini">${r.margineperc!=null?fmtNum(r.margineperc,0)+'%':''}${r.tariffaEffettiva?` · ${fmtEuro(r.tariffaEffettiva)}/km eff.`:''}</div></div><div class="v money ${r.margine>=0?'pos':'neg'}">${fmtEuro(r.margine)}</div></div>
     </div>`);
     summaryCol.appendChild(box);

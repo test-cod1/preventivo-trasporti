@@ -50,9 +50,11 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
   .grid2 > div { flex:1; }
   .tot { display:flex; gap:14px; margin-top:8px; }
   .tot .box { flex:1; border:1px solid #e4e8ec; border-radius:10px; padding:12px 14px; }
-  .tot .box.addebito { border-color:#e30613; background:#fdecec; }
+  .tot .box.addebito { border-color:#1c2024; background:#1c2024; }
   .tot .k { font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:#5a6570; }
   .tot .v { font-size:22px; font-weight:800; margin-top:3px; }
+  .tot .box.addebito .k { color:rgba(255,255,255,.75); }
+  .tot .box.addebito .v { color:#fff; font-size:26px; }
   .foot { margin-top:26px; font-size:10.5px; color:#5a6570; border-top:1px solid #e4e8ec; padding-top:10px; }
   .note { white-space:pre-wrap; }
 </style></head><body>
@@ -107,7 +109,7 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
   </table>
   <div class="tot">
     <div class="box"><div class="k">Spesa reale</div><div class="v">${euro(r.spesaReale)}</div></div>
-    <div class="box addebito"><div class="k">Importo da richiedere</div><div class="v">${euro(r.addebito)}</div></div>
+    <div class="box addebito"><div class="k">Totale</div><div class="v">${euro(r.addebito)}</div></div>
   </div>
 
   ${prev.note ? `<h2>Note</h2><div class="note">${esc(prev.note)}</div>` : ''}

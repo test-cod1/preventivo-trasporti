@@ -164,8 +164,10 @@ table.tbl tbody tr:hover td{background:#fafbfc;cursor:pointer}
 .tot-box .row:last-child{border-bottom:none}
 .tot-box .row .k{color:var(--ink-soft);font-size:13px}
 .tot-box .row .v{font-weight:800;font-size:22px;font-variant-numeric:tabular-nums}
-.tot-box .row.addebito{background:var(--cri-red-soft)}
-.tot-box .row.addebito .v{color:var(--cri-red-dark)}
+.tot-box .row.addebito{background:var(--ink);padding:18px}
+.tot-box .row.addebito .k{color:rgba(255,255,255,.75);font-size:13.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.tot-box .row.addebito .mini{color:rgba(255,255,255,.55)}
+.tot-box .row.addebito .v{color:#fff;font-size:28px}
 .tot-box .row.margine .v{font-size:18px}
 .pos{color:var(--ok)} .neg{color:var(--danger)}
 .breakdown{font-size:13px}
