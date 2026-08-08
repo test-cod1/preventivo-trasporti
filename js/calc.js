@@ -12,13 +12,17 @@ import { FUEL_DATA_DATE } from './data/fuel-prices.js';
 
 // ---- Impostazioni di default (modificabili in app) ---------------------
 export const DEFAULT_IMPOSTAZIONI = {
-  // Parco mezzi con consumo medio (km/litro) e alimentazione.
+  // Parco mezzi con consumo medio (km/litro), alimentazione e tariffa
+  // pedaggio autostradale €/km (stima; classe B ~0,12, classe A ~0,08).
   // Valori di consumo presi dallo storico Excel.
   mezzi: [
-    { id: 'ambulanza', nome: 'Ambulanza',  alimentazione: 'diesel',  consumo: 9.4 },
-    { id: 'doblo',     nome: 'Doblò',       alimentazione: 'diesel',  consumo: 12 },
-    { id: 'vettura',   nome: 'Vettura',     alimentazione: 'benzina', consumo: 13 },
+    { id: 'ambulanza', nome: 'Ambulanza',  alimentazione: 'diesel',  consumo: 9.4, pedaggioKm: 0.12 },
+    { id: 'doblo',     nome: 'Doblò',       alimentazione: 'diesel',  consumo: 12,  pedaggioKm: 0.12 },
+    { id: 'vettura',   nome: 'Vettura',     alimentazione: 'benzina', consumo: 13,  pedaggioKm: 0.08 },
   ],
+
+  // tariffa pedaggio di ripiego se un mezzo non ne ha una propria
+  pedaggioKmDefault: 0.10,
 
   pastoCosto: 25,        // € a pasto a persona (Excel: 25)
   tariffaKm: 1.20,       // € / km per l'addebito (Excel usava 1,15 e 1,20)

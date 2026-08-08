@@ -29,6 +29,7 @@ export async function renderPreventivo(view, id, ctx) {
     prev.input.prezzoCarburante = prezzoRiferimento('IT', prev.input.alimentazione, tabella(imp));
   }
   let prezzoAuto = prev._prezzoAuto !== false; // di default il prezzo segue il Paese
+  let pedaggioAuto = prev._pedaggioAuto !== false; // di default i pedaggi sono stimati dai km
 
   // ---- layout ----
   const head = el(`<div class="page-head">
@@ -112,7 +113,9 @@ export async function renderPreventivo(view, id, ctx) {
   // ================= SEZIONE 6: ALTRE VOCI =================
   const cExtra = card('Altre voci', `
     <div class="form-row three">
-      <div class="field"><label>Pedaggi autostradali (€)</label><input type="number" min="0" step="0.5" id="pedaggi" value="${prev.input.pedaggi}"></div>
+      <div class="field"><label>Pedaggi autostradali (€) <span class="badge-auto" id="badge-pedaggio">stima</span></label>
+        <input type="number" min="0" step="0.5" id="pedaggi" value="${prev.input.pedaggi}">
+        <div class="hint" id="pedaggio-hint"></div></div>
       <div class="field"><label>Medico al seguito (€)</label><input type="number" min="0" step="1" id="medico" value="${prev.input.medico}"></div>
       <div class="field"><label>&nbsp;</label>
         <label class="chk"><input type="checkbox" id="adblue" ${prev.input.adBlueOn?'checked':''}> AdBlue (stima su gasolio)</label>
@@ -162,6 +165,7 @@ export async function renderPreventivo(view, id, ctx) {
     const m = imp.mezzi.find(x => x.id === e.target.value);
     if (m) { prev.input.alimentazione = m.alimentazione; $('#alim').value = m.alimentazione; }
     if (prezzoAuto) refillPrezzo();
+    if (pedaggioAuto) refillPedaggio();
     updateMezzoHint(); recalc();
   });
   $('#alim').value = prev.input.alimentazione;
@@ -180,7 +184,14 @@ export async function renderPreventivo(view, id, ctx) {
   bindNum('#camere', 'camere');
   bindNum('#prezzoCameraNotte', 'prezzoCameraNotte');
   bindNum('#prezzoPersonaNotte', 'prezzoPersonaNotte');
-  bindNum('#pedaggi', 'pedaggi');
+  $('#pedaggi').value = prev.input.pedaggi || '';
+  $('#pedaggi').addEventListener('input', e => {
+    prev.input.pedaggi = num(e.target.value);
+    pedaggioAuto = false;
+    const b = $('#badge-pedaggio'); if (b) b.style.display = 'none';
+    const h = $('#pedaggio-hint'); if (h) h.textContent = 'Valore inserito a mano.';
+    recalc();
+  });
   bindNum('#medico', 'medico');
   bindNum('#adBluePerc', 'adBluePerc');
   bindNum('#adBluePrezzo', 'adBluePrezzo');
@@ -202,6 +213,7 @@ export async function renderPreventivo(view, id, ctx) {
 
   updateMezzoHint();
   updateCarbHint();
+  initPedaggio();
   recalc();
 
   // ================================================================
@@ -239,7 +251,11 @@ export async function renderPreventivo(view, id, ctx) {
     controls.querySelector('#ar').addEventListener('change', e => { prev.andata_ritorno = e.target.checked; });
     controls.querySelector('#calc-km').addEventListener('click', calcolaKm);
     const kmInput = controls.querySelector('#kmTotali');
-    kmInput.addEventListener('input', e => { prev.input.kmTotali = num(e.target.value); prev.km_auto = false; recalc(); });
+    kmInput.addEventListener('input', e => {
+      prev.input.kmTotali = num(e.target.value); prev.km_auto = false;
+      if (pedaggioAuto) refillPedaggio();
+      recalc();
+    });
   }
 
   function tappaRow(t, i) {
@@ -295,6 +311,7 @@ export async function renderPreventivo(view, id, ctx) {
       view.querySelector('#kmTotali').value = prev.input.kmTotali;
       const h = Math.floor(r.durationMin / 60), m = Math.round(r.durationMin % 60);
       view.querySelector('#km-hint').innerHTML = `✅ ${fmtKm(prev.input.kmTotali)} · durata stimata ${h}h ${m}m ${prev.andata_ritorno ? '(a/r)' : '(sola andata)'}`;
+      if (pedaggioAuto) refillPedaggio();
       recalc();
     } catch (e) {
       const msg = e instanceof RoutingError ? e.message : (e.message || 'Errore nel calcolo');
@@ -387,6 +404,7 @@ export async function renderPreventivo(view, id, ctx) {
     prev.risultato = calcola(prev.input, imp);
     prev.km_totali = prev.input.kmTotali;
     prev._prezzoAuto = prezzoAuto;
+    prev._pedaggioAuto = pedaggioAuto;
     const btn = head.querySelector('#btn-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvo…';
     try {
@@ -419,6 +437,25 @@ export async function renderPreventivo(view, id, ctx) {
       const inp = view.querySelector('#prezzoCarb'); if (inp) inp.value = p;
       const badge = view.querySelector('#badge-auto'); if (badge) badge.style.display = '';
     }
+  }
+  function tariffaPedaggio() {
+    const m = imp.mezzi.find(x => x.id === prev.input.mezzoId);
+    const r = (m && m.pedaggioKm != null) ? m.pedaggioKm : (imp.pedaggioKmDefault != null ? imp.pedaggioKmDefault : 0.10);
+    return Number(r) || 0;
+  }
+  function refillPedaggio() {
+    const rate = tariffaPedaggio();
+    const km = num(prev.input.kmTotali);
+    prev.input.pedaggi = Math.round(km * rate);
+    const inp = view.querySelector('#pedaggi'); if (inp) inp.value = prev.input.pedaggi || '';
+    const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = '';
+    const h = view.querySelector('#pedaggio-hint');
+    if (h) h.innerHTML = `≈ ${fmtNum(km, 0)} km × ${fmtEuro(rate)}/km. Stima, modificabile.`;
+  }
+  function initPedaggio() {
+    if (pedaggioAuto) { refillPedaggio(); return; }
+    const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = 'none';
+    const h = view.querySelector('#pedaggio-hint'); if (h) h.textContent = 'Valore inserito a mano.';
   }
   function updateMezzoHint() {
     const m = imp.mezzi.find(x => x.id === prev.input.mezzoId);
