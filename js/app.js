@@ -16,13 +16,18 @@ const NAV = [
 ];
 
 async function boot() {
-  // Il link di recupero password torna con "type=recovery" nell'hash:
-  // lo rilevo PRIMA che il client Supabase lo consumi e pulisca l'URL.
-  const isRecovery = location.hash.includes('type=recovery');
+  // Il link di recupero password torna con "type=recovery" nell'hash, quello
+  // di invito (Supabase Dashboard > Invite user) con "type=invite" (o
+  // "type=signup" a seconda della versione): in entrambi i casi l'utente deve
+  // impostare la propria password prima di entrare. Rilevo il tipo PRIMA che
+  // il client Supabase lo consumi e pulisca l'URL.
+  const match = location.hash.match(/type=(recovery|invite|signup)/);
+  const isInvite = match && match[1] !== 'recovery';
+  const isSetPassword = !!match;
   await initStore();
   currentUser = await auth.current();
-  if (isRecovery) {
-    renderResetPassword(app, async () => { currentUser = await auth.current(); await startApp(); });
+  if (isSetPassword) {
+    renderResetPassword(app, async () => { currentUser = await auth.current(); await startApp(); }, { invite: isInvite });
     return;
   }
   if (!currentUser) {

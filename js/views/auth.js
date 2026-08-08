@@ -67,15 +67,19 @@ function renderRichiestaReset(app, onDone, emailPrecompilata = '') {
   wrap.querySelector('#email').addEventListener('keydown', e => { if (e.key === 'Enter') wrap.querySelector('#send').click(); });
 }
 
-// ---- Schermata "imposta nuova password" (dopo il click sul link email) ----
-export function renderResetPassword(app, onDone) {
+// ---- Schermata "imposta password" (dopo il click sul link email di reset O di invito) ----
+export function renderResetPassword(app, onDone, { invite = false } = {}) {
   clear(app);
+  const title = invite ? 'Benvenuto! Imposta la tua password' : 'Imposta una nuova password';
+  const sub = invite
+    ? 'Il tuo account è stato creato: scegli una password per accedere da qui in avanti.'
+    : 'Scegli la nuova password per il tuo account.';
   const wrap = el(`<div class="login-wrap"><div class="login">
     ${BRAND}
-    <div class="banner ok" style="margin-bottom:18px"><div class="bi">🔒</div><div><b>Imposta una nuova password</b><div class="small">Scegli la nuova password per il tuo account.</div></div></div>
+    <div class="banner ok" style="margin-bottom:18px"><div class="bi">🔒</div><div><b>${esc(title)}</b><div class="small">${esc(sub)}</div></div></div>
     <div class="field"><label>Nuova password</label><input type="password" id="pw1" placeholder="almeno 6 caratteri" autocomplete="new-password"></div>
     <div class="field"><label>Conferma password</label><input type="password" id="pw2" placeholder="ripeti la password" autocomplete="new-password"></div>
-    <button class="btn primary" id="save" style="width:100%;justify-content:center;margin-top:6px">Salva nuova password</button>
+    <button class="btn primary" id="save" style="width:100%;justify-content:center;margin-top:6px">${invite ? 'Crea password e accedi' : 'Salva nuova password'}</button>
     <div id="err" style="color:var(--danger);font-size:13px;margin-top:12px;text-align:center"></div>
   </div></div>`);
   app.appendChild(wrap);
@@ -93,7 +97,7 @@ export function renderResetPassword(app, onDone) {
       await auth.updatePassword(pw1);
       // pulisce i token dall'URL e prosegue nell'app (la sessione è già attiva)
       history.replaceState(null, '', location.pathname + '#/preventivi');
-      toast('Password aggiornata', 'ok');
+      toast(invite ? 'Password creata' : 'Password aggiornata', 'ok');
       onDone();
     } catch (e) {
       err.textContent = traduci(e.message) || 'Aggiornamento non riuscito. Il link potrebbe essere scaduto: richiedine uno nuovo.';
