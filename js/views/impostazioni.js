@@ -17,17 +17,22 @@ export async function renderImpostazioni(view, ctx) {
   const cMezzi = card('Parco mezzi e consumi', '<div id="mezzi"></div><button class="btn sm" id="add-mezzo" type="button">➕ Aggiungi mezzo</button>');
   view.appendChild(cMezzi);
   const mezziBox = cMezzi.querySelector('#mezzi');
-  const COLS = 'grid-template-columns:1fr 130px 90px 34px';
+  // Campi etichettati su .form-row.three invece di una griglia a colonne fisse
+  // in pixel: su schermi stretti (telefono) si impila automaticamente con la
+  // stessa regola responsive già usata nel resto del sito (styles.css).
   function drawMezzi() {
     clear(mezziBox);
-    mezziBox.appendChild(el(`<div class="matrow" style="${COLS};font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em">
-      <div>Nome</div><div>Alimentazione</div><div>km/l</div><div></div></div>`));
     imp.mezzi.forEach((m, i) => {
-      const r = el(`<div class="matrow" style="${COLS}">
-        <input type="text" value="${esc(m.nome)}">
-        <select><option value="diesel" ${m.alimentazione==='diesel'?'selected':''}>Gasolio</option><option value="benzina" ${m.alimentazione==='benzina'?'selected':''}>Benzina</option></select>
-        <input type="number" step="0.1" value="${m.consumo}">
-        <button class="rm btn ghost sm" type="button">✕</button>
+      const r = el(`<div class="mezzo-row">
+        <div class="form-row three">
+          <div class="field"><label>Nome</label><input type="text" value="${esc(m.nome)}"></div>
+          <div class="field"><label>Alimentazione</label><select>
+            <option value="diesel" ${m.alimentazione==='diesel'?'selected':''}>Gasolio</option>
+            <option value="benzina" ${m.alimentazione==='benzina'?'selected':''}>Benzina</option>
+          </select></div>
+          <div class="field"><label>Consumo (km/l)</label><input type="number" step="0.1" value="${m.consumo}"></div>
+        </div>
+        <button class="rm btn ghost sm" type="button">✕ Rimuovi mezzo</button>
       </div>`);
       const [nome, cons] = r.querySelectorAll('input');
       const alim = r.querySelector('select');
@@ -85,9 +90,9 @@ export async function renderImpostazioni(view, ctx) {
     Object.entries(prezzi).sort((a,b) => a[1].nome.localeCompare(b[1].nome)).forEach(([iso, row]) => {
       if (q && !row.nome.toLowerCase().includes(q)) return;
       const tr = el(`<tr>
-        <td>${flag(iso)} ${esc(row.nome)} <span class="mini">${iso}</span></td>
-        <td><input type="number" step="0.001" value="${row.diesel}" style="width:110px;padding:6px 8px"></td>
-        <td><input type="number" step="0.001" value="${row.benzina}" style="width:110px;padding:6px 8px"></td>
+        <td class="fuel-country">${flag(iso)} ${esc(row.nome)} <span class="mini">${iso}</span></td>
+        <td><input class="fuel-price" type="number" step="0.001" value="${row.diesel}"></td>
+        <td><input class="fuel-price" type="number" step="0.001" value="${row.benzina}"></td>
       </tr>`);
       const [d, b] = tr.querySelectorAll('input');
       d.addEventListener('input', () => row.diesel = Number(d.value) || 0);

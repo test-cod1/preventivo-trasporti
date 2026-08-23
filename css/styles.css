@@ -103,6 +103,8 @@ table.tbl td{padding:11px 12px;border-bottom:1px solid var(--line)}
 table.tbl tr:last-child td{border-bottom:none}
 table.tbl tbody tr:hover td{background:#fafbfc;cursor:pointer}
 .tbl-wrap{overflow-x:auto}
+.fuel-country{white-space:nowrap}
+input.fuel-price{width:110px;padding:6px 8px}
 .money{font-variant-numeric:tabular-nums;font-weight:600}
 
 /* ---------- Banner ---------- */
@@ -183,6 +185,11 @@ table.tbl tbody tr:hover td{background:#fafbfc;cursor:pointer}
 .pill-toggle button{border:none;background:#fff;padding:9px 14px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink-soft)}
 .pill-toggle button.active{background:var(--cri-red);color:#fff}
 .matrow{display:grid;grid-template-columns:1fr 120px 34px;gap:8px;margin-bottom:8px}
+.mezzo-row{padding:14px 0;border-bottom:1px dashed var(--line);display:flex;flex-direction:column;gap:8px}
+.mezzo-row:last-child{border-bottom:none;padding-bottom:0}
+.mezzo-row .form-row{margin-bottom:0}
+.mezzo-row .field{margin-bottom:0}
+.mezzo-row .rm{align-self:flex-start}
 .chk{display:flex;align-items:center;gap:8px;font-size:13.5px;padding:6px 0}
 .chk input{width:auto}
 
@@ -223,4 +230,6 @@ table.tbl tbody tr:hover td{background:#fafbfc;cursor:pointer}
   .nav a .txt{font-size:10.5px}
   .main{padding:18px 16px 90px}
   .form-row,.form-row.three{grid-template-columns:1fr}
+  input.fuel-price{width:84px;padding:6px}
+  table.tbl th,table.tbl td{padding:8px}
 }
