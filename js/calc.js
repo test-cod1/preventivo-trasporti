@@ -69,7 +69,10 @@ export function nuovoInput(imp = DEFAULT_IMPOSTAZIONI) {
   };
 }
 
-const n = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+// Nessuna voce del preventivo ha senso negativa (km, persone, notti, importi...):
+// un valore negativo incollato o inserito a mano ridurrebbe il totale in modo
+// silenzioso invece di dare un errore, quindi viene clampato a 0.
+const n = (v) => { const x = Number(v); return Number.isFinite(x) ? Math.max(0, x) : 0; };
 
 // ---- Calcolo principale -----------------------------------------------
 export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {

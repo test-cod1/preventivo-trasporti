@@ -13,9 +13,14 @@ export async function onRequestPost(context) {
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Body non valido.' }, 400); }
   const coordinates = body.coordinates;
-  if (!Array.isArray(coordinates) || coordinates.length < 2) {
-    return json({ error: 'Servono almeno due coordinate.' }, 400);
+  if (!Array.isArray(coordinates) || coordinates.length < 2 || coordinates.length > 25) {
+    return json({ error: 'Servono tra 2 e 25 coordinate.' }, 400);
   }
+  const valid = coordinates.every(c =>
+    Array.isArray(c) && c.length === 2 &&
+    Number.isFinite(c[0]) && c[0] >= -180 && c[0] <= 180 &&
+    Number.isFinite(c[1]) && c[1] >= -90 && c[1] <= 90);
+  if (!valid) return json({ error: 'Coordinate non valide.' }, 400);
 
   const payload = { coordinates };
   if (body.avoidTolls) payload.options = { avoid_features: ['tollways'] };

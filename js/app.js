@@ -1,5 +1,5 @@
 import { initStore, auth, impostazioni, MODE } from './data/store.js';
-import { el, clear } from './lib/ui.js';
+import { el, clear, esc } from './lib/ui.js';
 import { renderLogin, renderResetPassword } from './views/auth.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderPreventivo } from './views/preventivo.js';
@@ -100,7 +100,7 @@ async function route() {
     else await renderDashboard(view, ctx);
   } catch (e) {
     clear(view);
-    view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore: ${e.message}</p></div>`));
+    view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore: ${esc(e.message)}</p></div>`));
     console.error(e);
   }
 }

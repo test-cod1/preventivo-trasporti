@@ -52,6 +52,7 @@ export async function renderPreventivo(view, id, ctx) {
   let medicoOreAuto = prev.input._medicoOreAuto !== false; // le ore sanitari seguono la durata del percorso finché non le tocchi
   let medicoTotAuto = prev.input._medicoTotAuto !== false;         // il totale medico = ore × tariffa finché non lo tocchi
   let infermiereTotAuto = prev.input._infermiereTotAuto !== false; // il totale infermiere = ore × tariffa finché non lo tocchi
+  let calcKmSeq = 0; // scarta le risposte di route() obsolete se parte una richiesta più recente
 
   // ---- layout ----
   const head = el(`<div class="page-head">
@@ -404,9 +405,11 @@ export async function renderPreventivo(view, id, ctx) {
     if (!stops.length) { if (!auto) toast('Seleziona almeno una destinazione dall\'elenco suggerimenti.', 'err'); return; }
     const coords = [[part.lon, part.lat], ...stops.map(t => [t.lon, t.lat])];
     if (prev.andata_ritorno) coords.push([part.lon, part.lat]);
+    const mySeq = ++calcKmSeq;
     const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Calcolo…';
     try {
       const r = await route(coords);
+      if (mySeq !== calcKmSeq) return; // una richiesta più recente ha già preso il suo posto
       prev.input.kmTotali = Math.round(r.distanceKm);
       prev.km_auto = true;
       view.querySelector('#kmTotali').value = prev.input.kmTotali;
@@ -416,10 +419,11 @@ export async function renderPreventivo(view, id, ctx) {
       if (medicoOreAuto) refillMedicoOre(r.durationMin);
       recalc();
     } catch (e) {
+      if (mySeq !== calcKmSeq) return;
       const msg = e instanceof RoutingError ? e.message : (e.message || 'Errore nel calcolo');
       view.querySelector('#km-hint').innerHTML = `<span style="color:var(--danger)">⚠️ ${esc(msg)} — inserisci i km a mano.</span>`;
       if (!auto) toast(msg, 'err');
-    } finally { btn.disabled = false; btn.innerHTML = old; }
+    } finally { if (mySeq === calcKmSeq) { btn.disabled = false; btn.innerHTML = old; } }
   }
 
   function syncItinerario() {
@@ -537,10 +541,15 @@ export async function renderPreventivo(view, id, ctx) {
   }
   function refillPrezzo() {
     const p = prezzoRiferimento(prev.paese_dest || 'IT', prev.input.alimentazione, tabella(imp));
+    const badge = view.querySelector('#badge-auto');
     if (p != null) {
       prev.input.prezzoCarburante = p;
       const inp = view.querySelector('#prezzoCarb'); if (inp) inp.value = p;
-      const badge = view.querySelector('#badge-auto'); if (badge) badge.style.display = '';
+      if (badge) badge.style.display = '';
+    } else if (badge) {
+      // Nessun prezzo di riferimento per questo Paese: non lasciare il badge
+      // "auto" su un valore ormai riferito alla destinazione precedente.
+      badge.style.display = 'none';
     }
   }
   function tariffaEstero() {

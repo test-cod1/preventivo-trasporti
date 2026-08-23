@@ -77,7 +77,13 @@ alter table public.impostazioni_trasferte enable row level security;
 drop policy if exists prof_self on public.profili;
 create policy prof_self on public.profili for select using (id = auth.uid());
 drop policy if exists prof_update_self on public.profili;
-create policy prof_update_self on public.profili for update using (id = auth.uid());
+-- WITH CHECK esplicito: senza, la USING viene riusata anche dopo l'update e
+-- non impedisce a un utente di cambiare il proprio "ruolo" (es. auto-promozione
+-- ad admin). Il ruolo può essere cambiato solo restando invariato da qui;
+-- va gestito da un admin con una query diretta o un'RPC dedicata.
+create policy prof_update_self on public.profili for update
+  using (id = auth.uid())
+  with check (id = auth.uid() and ruolo = (select p.ruolo from public.profili p where p.id = auth.uid()));
 
 drop policy if exists prev_read on public.preventivi;
 create policy prev_read on public.preventivi for select using (auth.role() = 'authenticated');
