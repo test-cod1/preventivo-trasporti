@@ -9,3 +9,13 @@ export async function getSupabase() {
   _client = createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
   return _client;
 }
+
+// Token della sessione corrente, da allegare come Authorization alle
+// Cloudflare Pages Functions (/api/geocode, /api/route) così sanno che la
+// richiesta arriva da un utente loggato. null se non c'è sessione (es. modo
+// locale demo, dove queste chiamate resteranno rifiutate).
+export async function getAccessToken() {
+  const sb = await getSupabase();
+  const { data } = await sb.auth.getSession();
+  return data.session?.access_token || null;
+}

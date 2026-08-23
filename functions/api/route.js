@@ -6,8 +6,12 @@
 //  (vedi istruzioni in functions/api/geocode.js).
 // ============================================================
 
+import { requireUser } from '../_lib/auth.js';
+
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const user = await requireUser(request, env);
+  if (!user) return json({ error: 'Accesso non autorizzato: effettua il login.' }, 401);
   if (!env.ORS_KEY) return json({ error: 'Chiave OpenRouteService non configurata (ORS_KEY).' }, 500);
 
   let body;

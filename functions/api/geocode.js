@@ -8,8 +8,13 @@
 //    Environment variables > add > Name: ORS_KEY  Value: <la tua chiave>
 // ============================================================
 
+import { requireUser } from '../_lib/auth.js';
+
 export async function onRequestGet(context) {
   const { request, env } = context;
+  const user = await requireUser(request, env);
+  if (!user) return json({ error: 'Accesso non autorizzato: effettua il login.' }, 401);
+
   const url = new URL(request.url);
   const text = url.searchParams.get('text') || '';
   const size = url.searchParams.get('size') || '6';

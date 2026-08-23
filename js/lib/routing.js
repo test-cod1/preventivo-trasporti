@@ -4,8 +4,17 @@
 //  che a loro volta interrogano OpenRouteService con la chiave segreta.
 // ============================================================
 import { CONFIG } from '../config.js';
+import { getAccessToken } from './supabase.js';
 
 export class RoutingError extends Error {}
+
+// Allega il token della sessione Supabase: le Function /api/geocode e
+// /api/route lo richiedono per evitare che chiunque le interroghi da fuori
+// dall'app esaurendo la quota della chiave OpenRouteService.
+async function authHeaders() {
+  const token = await getAccessToken();
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
 
 // ---- Geocoding: testo -> lista di candidati ----------------------------
 // Ritorna [{ label, lon, lat, iso2, iso3, paese, regione }]
@@ -14,7 +23,7 @@ export async function geocode(text, { size = 6 } = {}) {
   const url = `${CONFIG.api.geocode}?text=${encodeURIComponent(text)}&size=${size}`;
   let res;
   try {
-    res = await fetch(url);
+    res = await fetch(url, { headers: await authHeaders() });
   } catch (e) {
     throw new RoutingError('Servizio mappe non raggiungibile.');
   }
@@ -54,7 +63,7 @@ export async function route(coordinates, { avoidTolls = false } = {}) {
   try {
     res = await fetch(CONFIG.api.route, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({ coordinates, avoidTolls }),
     });
   } catch (e) {
