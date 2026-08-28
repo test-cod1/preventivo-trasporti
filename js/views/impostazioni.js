@@ -1,7 +1,15 @@
 import { impostazioni } from '../data/store.js';
 import { DEFAULT_IMPOSTAZIONI } from '../calc.js';
 import { FUEL_PRICES, FUEL_DATA_DATE } from '../data/fuel-prices.js';
+import { getAccessToken } from '../lib/supabase.js';
 import { el, clear, esc, toast, fmtNum, confirmDialog } from '../lib/ui.js';
+
+// Paesi UE coperti da /api/prezzo-eu (Weekly Oil Bulletin): gli altri restano
+// modificabili solo a mano, non esiste una fonte gratuita equivalente.
+const UE_ISO2 = new Set([
+  'AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT',
+  'LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE',
+]);
 
 export async function renderImpostazioni(view, ctx) {
   clear(view);
@@ -80,7 +88,9 @@ export async function renderImpostazioni(view, ctx) {
       <div class="small">Valori usati per precompilare il prezzo in base al Paese di destinazione. Modificali quando vuoi; premi "Ripristina" per tornare ai valori ufficiali di riferimento.</div>
     </div></div>
     <div class="toolbar"><div class="search"><input type="text" id="qfuel" placeholder="Filtra Paese…"></div>
+      <button class="btn sm" id="update-eu" type="button">🇪🇺 Aggiorna prezzi UE</button>
       <button class="btn sm" id="reset-fuel" type="button">↺ Ripristina valori ufficiali</button></div>
+    <div class="hint" id="eu-hint" style="margin:-10px 0 14px">"Aggiorna prezzi UE" scarica dal bollettino settimanale della Commissione Europea i prezzi correnti per i ~27 Paesi UE (non copre i Paesi extra-UE della tabella).</div>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Paese</th><th>Gasolio €/l</th><th>Benzina €/l</th></tr></thead><tbody id="fuel-body"></tbody></table></div>`);
   view.appendChild(cFuel);
   const fuelBody = cFuel.querySelector('#fuel-body');
@@ -108,6 +118,27 @@ export async function renderImpostazioni(view, ctx) {
       imp.fuelDataDate = FUEL_DATA_DATE;
       drawFuel(); toast('Prezzi ripristinati', 'ok');
     }
+  });
+  cFuel.querySelector('#update-eu').addEventListener('click', async () => {
+    const btn = cFuel.querySelector('#update-eu'); const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Aggiorno…';
+    try {
+      const token = await getAccessToken();
+      const res = await fetch('/api/prezzo-eu', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Errore ${res.status}`);
+      let n = 0;
+      for (const [iso, p] of Object.entries(data.prezzi || {})) {
+        if (!prezzi[iso] || !UE_ISO2.has(iso)) continue;
+        prezzi[iso].diesel = p.diesel;
+        prezzi[iso].benzina = p.benzina;
+        n++;
+      }
+      drawFuel();
+      toast(`Prezzi UE aggiornati (${n} Paesi, dati del ${data.aggiornatoAl})`, 'ok');
+    } catch (e) {
+      toast('Aggiornamento prezzi UE non riuscito: ' + (e.message || e), 'err');
+    } finally { btn.disabled = false; btn.innerHTML = old; }
   });
 
   // ---------- salvataggio ----------
