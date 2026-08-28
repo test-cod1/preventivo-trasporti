@@ -1,4 +1,5 @@
 import { initStore, auth, impostazioni, MODE } from './data/store.js';
+import { fetchPrezzoItaliaLive, applicaPrezzoItaliaLive } from './data/fuel-prices.js';
 import { el, clear, esc } from './lib/ui.js';
 import { renderLogin, renderResetPassword } from './views/auth.js';
 import { renderDashboard } from './views/dashboard.js';
@@ -40,6 +41,14 @@ async function boot() {
 let _routerBound = false;
 async function startApp() {
   imp = await impostazioni.get();
+  // Prezzo Italia aggiornato ad ogni apertura dell'app (dati ufficiali MISE):
+  // se la fonte non risponde entro pochi secondi si procede comunque con i
+  // valori di riferimento correnti, senza bloccare l'avvio.
+  const live = await Promise.race([
+    fetchPrezzoItaliaLive().catch(() => null),
+    new Promise(res => setTimeout(() => res(null), 4000)),
+  ]);
+  imp._prezzoItaliaLiveAl = applicaPrezzoItaliaLive(imp, live) ? live.aggiornatoAl : null;
   renderShell();
   if (!_routerBound) { window.addEventListener('hashchange', route); _routerBound = true; }
   // Se l'hash è vuoto lo impostiamo: questo scatena hashchange -> route().

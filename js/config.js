@@ -35,5 +35,6 @@ export const CONFIG = {
   api: {
     geocode: '/api/geocode',
     route: '/api/route',
+    prezzoItalia: '/api/prezzo-italia',
   },
 };

@@ -11,6 +11,8 @@
 //  Campi:  nome (it), iso3, diesel (gasolio), benzina.
 // ============================================================
 
+import { CONFIG } from '../config.js';
+
 export const FUEL_DATA_DATE = '2026-08-03';
 
 export const FUEL_PRICES = {
@@ -78,4 +80,38 @@ export function paeseDaIso(paese, tabella = FUEL_PRICES) {
   const p = String(paese).toUpperCase();
   const iso2 = p.length === 3 ? ISO3_TO_ISO2[p] : p;
   return tabella[iso2] ? { iso2, ...tabella[iso2] } : null;
+}
+
+// ---- Prezzo Italia in tempo reale (dati ufficiali MISE) -----------------
+// Chiamata a ogni apertura dell'app: aggiorna solo la riga IT con la media
+// nazionale del giorno, senza toccare gli altri Paesi né richiedere un
+// salvataggio manuale. Se la fonte non è raggiungibile, fallisce in
+// silenzio e restano i valori di riferimento correnti.
+export async function fetchPrezzoItaliaLive() {
+  try {
+    const res = await fetch(CONFIG.api.prezzoItalia);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Number.isFinite(data.diesel) || !Number.isFinite(data.benzina)) return null;
+    return { diesel: data.diesel, benzina: data.benzina, aggiornatoAl: data.aggiornatoAl };
+  } catch {
+    return null;
+  }
+}
+
+// Applica il prezzo live alla riga IT dell'oggetto impostazioni (mutandolo),
+// creando prezziCustom come copia della tabella di default se non esiste
+// ancora. Ritorna true se il prezzo è stato aggiornato. Non è persistito su
+// Supabase: resta valido per la sessione corrente, e viene ri-richiesto a
+// ogni apertura dell'app (se poi l'operatore salva le Impostazioni mentre è
+// attivo, il valore live di quel momento viene comunque salvato, ma la
+// prossima apertura lo aggiorna di nuovo).
+export function applicaPrezzoItaliaLive(imp, live) {
+  if (!live) return false;
+  if (!imp.prezziCustom) imp.prezziCustom = structuredClone(FUEL_PRICES);
+  const row = imp.prezziCustom.IT;
+  if (!row) return false;
+  row.diesel = live.diesel;
+  row.benzina = live.benzina;
+  return true;
 }

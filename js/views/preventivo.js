@@ -673,9 +673,15 @@ export async function renderPreventivo(view, id, ctx) {
   }
   function updateCarbHint() {
     const h = view.querySelector('#carb-hint'); if (!h) return;
-    const info = paeseDaIso(prev.paese_dest || 'IT', tabella(imp));
-    if (info) h.innerHTML = `Media ${esc(info.nome)} (${imp.fuelDataDate}). Modificabile.`;
-    else h.textContent = 'Prezzo manuale.';
+    const dest = prev.paese_dest || 'IT';
+    const info = paeseDaIso(dest, tabella(imp));
+    if (dest === 'IT' && imp._prezzoItaliaLiveAl) {
+      h.innerHTML = `📡 Media nazionale live (MISE, ${esc(imp._prezzoItaliaLiveAl)}). Modificabile.`;
+    } else if (info) {
+      h.innerHTML = `Media ${esc(info.nome)} (${imp.fuelDataDate}). Modificabile.`;
+    } else {
+      h.textContent = 'Prezzo manuale.';
+    }
   }
 }
 
