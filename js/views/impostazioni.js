@@ -129,7 +129,15 @@ export async function renderImpostazioni(view, ctx) {
         imp.fuelDataDate = data.aggiornatoAl;
         cFuel.querySelector('#fuel-data-date').textContent = `Medie nazionali · aggiornate al ${fmtDate(data.aggiornatoAl)}`;
       }
-      toast(`Prezzi UE aggiornati (${n} Paesi, dati del ${fmtDate(data.aggiornatoAl)})`, 'ok');
+      // Salva subito i prezzi scaricati (senza toccare altre modifiche non
+      // ancora confermate nel resto del form): altrimenti un refresh della
+      // pagina prima del click su "Salva impostazioni" li fa perdere.
+      const salvati = await impostazioni.get();
+      salvati.prezziCustom = prezzi;
+      salvati.fuelDataDate = imp.fuelDataDate;
+      await impostazioni.save(salvati);
+      await ctx.reloadImp();
+      toast(`Prezzi UE aggiornati e salvati (${n} Paesi, dati del ${fmtDate(data.aggiornatoAl)})`, 'ok');
     } catch (e) {
       toast('Aggiornamento prezzi UE non riuscito: ' + (e.message || e), 'err');
     } finally { btn.disabled = false; btn.innerHTML = old; }
