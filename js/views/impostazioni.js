@@ -84,7 +84,7 @@ export async function renderImpostazioni(view, ctx) {
   // ---------- Prezzi carburante ----------
   const cFuel = card(`Prezzi carburante di riferimento`, `
     <div class="banner info" style="margin:0 0 14px;flex-wrap:wrap"><div class="bi">⛽</div><div style="flex:1;min-width:200px">
-      <b>Medie nazionali · aggiornate al ${esc(imp.fuelDataDate || FUEL_DATA_DATE)}</b>
+      <b id="fuel-data-date">Medie nazionali · aggiornate al ${esc(imp.fuelDataDate || FUEL_DATA_DATE)}</b>
       <div class="small">Valori usati per precompilare il prezzo in base al Paese di destinazione UE. Modificali quando vuoi, o scarica il bollettino settimanale della Commissione Europea per aggiornarli tutti in blocco.</div>
     </div><button class="btn sm" id="update-eu" type="button" style="flex:none;align-self:center">🇪🇺 Aggiorna prezzi UE</button></div>
     <div class="toolbar"><div class="search"><span class="search-icon" aria-hidden="true">🔍</span><input type="text" id="qfuel" placeholder="Filtra Paese…"></div></div>
@@ -125,6 +125,10 @@ export async function renderImpostazioni(view, ctx) {
         n++;
       }
       drawFuel();
+      if (data.aggiornatoAl) {
+        imp.fuelDataDate = data.aggiornatoAl;
+        cFuel.querySelector('#fuel-data-date').textContent = `Medie nazionali · aggiornate al ${data.aggiornatoAl}`;
+      }
       toast(`Prezzi UE aggiornati (${n} Paesi, dati del ${data.aggiornatoAl})`, 'ok');
     } catch (e) {
       toast('Aggiornamento prezzi UE non riuscito: ' + (e.message || e), 'err');
