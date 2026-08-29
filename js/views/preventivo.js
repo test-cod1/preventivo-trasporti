@@ -4,7 +4,7 @@ import { CONFIG } from '../config.js';
 import { geocode, route, RoutingError } from '../lib/routing.js';
 import { prezzoRiferimento, paeseDaIso } from '../data/fuel-prices.js';
 import { stampaPreventivo } from '../lib/pdf.js';
-import { el, clear, esc, fmtEuro, fmtNum, fmtKm, toast, debounce, confirmDialog } from '../lib/ui.js';
+import { el, clear, esc, fmtEuro, fmtNum, fmtKm, fmtDate, toast, debounce, confirmDialog } from '../lib/ui.js';
 
 export async function renderPreventivo(view, id, ctx) {
   const imp = ctx.imp;
@@ -676,9 +676,9 @@ export async function renderPreventivo(view, id, ctx) {
     const dest = prev.paese_dest || 'IT';
     const info = paeseDaIso(dest, tabella(imp));
     if (dest === 'IT' && imp._prezzoItaliaLiveAl) {
-      h.innerHTML = `📡 Media nazionale live (MISE, ${esc(imp._prezzoItaliaLiveAl)}). Modificabile.`;
+      h.innerHTML = `📡 Media nazionale live (MISE, ${esc(fmtDate(imp._prezzoItaliaLiveAl))}). Modificabile.`;
     } else if (info) {
-      h.innerHTML = `Media ${esc(info.nome)} (${imp.fuelDataDate}). Modificabile.`;
+      h.innerHTML = `Media ${esc(info.nome)} (${fmtDate(imp.fuelDataDate)}). Modificabile.`;
     } else {
       h.textContent = 'Prezzo manuale.';
     }

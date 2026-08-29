@@ -2,7 +2,7 @@ import { impostazioni } from '../data/store.js';
 import { DEFAULT_IMPOSTAZIONI } from '../calc.js';
 import { FUEL_PRICES, FUEL_DATA_DATE } from '../data/fuel-prices.js';
 import { getAccessToken } from '../lib/supabase.js';
-import { el, clear, esc, toast, fmtNum } from '../lib/ui.js';
+import { el, clear, esc, toast, fmtNum, fmtDate } from '../lib/ui.js';
 
 // Paesi UE coperti da /api/prezzo-eu (Weekly Oil Bulletin): gli altri restano
 // modificabili solo a mano, non esiste una fonte gratuita equivalente.
@@ -84,7 +84,7 @@ export async function renderImpostazioni(view, ctx) {
   // ---------- Prezzi carburante ----------
   const cFuel = card(`Prezzi carburante di riferimento`, `
     <div class="banner info" style="margin:0 0 14px;flex-wrap:wrap"><div class="bi">⛽</div><div style="flex:1;min-width:200px">
-      <b id="fuel-data-date">Medie nazionali · aggiornate al ${esc(imp.fuelDataDate || FUEL_DATA_DATE)}</b>
+      <b id="fuel-data-date">Medie nazionali · aggiornate al ${esc(fmtDate(imp.fuelDataDate || FUEL_DATA_DATE))}</b>
       <div class="small">Valori usati per precompilare il prezzo in base al Paese di destinazione UE. Modificali quando vuoi, o scarica il bollettino settimanale della Commissione Europea per aggiornarli tutti in blocco.</div>
     </div><button class="btn sm" id="update-eu" type="button" style="flex:none;align-self:center">🇪🇺 Aggiorna prezzi UE</button></div>
     <div class="toolbar"><div class="search"><span class="search-icon" aria-hidden="true">🔍</span><input type="text" id="qfuel" placeholder="Filtra Paese…"></div></div>
@@ -127,9 +127,9 @@ export async function renderImpostazioni(view, ctx) {
       drawFuel();
       if (data.aggiornatoAl) {
         imp.fuelDataDate = data.aggiornatoAl;
-        cFuel.querySelector('#fuel-data-date').textContent = `Medie nazionali · aggiornate al ${data.aggiornatoAl}`;
+        cFuel.querySelector('#fuel-data-date').textContent = `Medie nazionali · aggiornate al ${fmtDate(data.aggiornatoAl)}`;
       }
-      toast(`Prezzi UE aggiornati (${n} Paesi, dati del ${data.aggiornatoAl})`, 'ok');
+      toast(`Prezzi UE aggiornati (${n} Paesi, dati del ${fmtDate(data.aggiornatoAl)})`, 'ok');
     } catch (e) {
       toast('Aggiornamento prezzi UE non riuscito: ' + (e.message || e), 'err');
     } finally { btn.disabled = false; btn.innerHTML = old; }
