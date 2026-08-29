@@ -30,7 +30,7 @@ export async function renderDashboard(view, ctx) {
 
   // toolbar
   const toolbar = el(`<div class="toolbar">
-    <div class="search"><input type="text" id="q" placeholder="Cerca per titolo o destinazione…"></div>
+    <div class="search"><span class="search-icon" aria-hidden="true">🔍</span><input type="text" id="q" placeholder="Cerca per titolo o destinazione…"></div>
   </div>`);
   view.appendChild(toolbar);
 

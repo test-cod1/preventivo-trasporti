@@ -87,7 +87,7 @@ export async function renderImpostazioni(view, ctx) {
       <b>Medie nazionali · aggiornate al ${esc(imp.fuelDataDate || FUEL_DATA_DATE)}</b>
       <div class="small">Valori usati per precompilare il prezzo in base al Paese di destinazione. Modificali quando vuoi; premi "Ripristina" per tornare ai valori ufficiali di riferimento.</div>
     </div></div>
-    <div class="toolbar"><div class="search"><input type="text" id="qfuel" placeholder="Filtra Paese…"></div>
+    <div class="toolbar"><div class="search"><span class="search-icon" aria-hidden="true">🔍</span><input type="text" id="qfuel" placeholder="Filtra Paese…"></div>
       <button class="btn sm" id="update-eu" type="button">🇪🇺 Aggiorna prezzi UE</button>
       <button class="btn sm" id="reset-fuel" type="button">↺ Ripristina valori ufficiali</button></div>
     <div class="hint" id="eu-hint" style="margin:-10px 0 14px">"Aggiorna prezzi UE" scarica dal bollettino settimanale della Commissione Europea i prezzi correnti per i ~27 Paesi UE (non copre i Paesi extra-UE della tabella).</div>
