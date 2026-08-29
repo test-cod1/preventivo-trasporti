@@ -83,13 +83,11 @@ export async function renderImpostazioni(view, ctx) {
 
   // ---------- Prezzi carburante ----------
   const cFuel = card(`Prezzi carburante di riferimento`, `
-    <div class="banner info" style="margin:0 0 14px"><div class="bi">⛽</div><div>
+    <div class="banner info" style="margin:0 0 14px;flex-wrap:wrap"><div class="bi">⛽</div><div style="flex:1;min-width:200px">
       <b>Medie nazionali · aggiornate al ${esc(imp.fuelDataDate || FUEL_DATA_DATE)}</b>
-      <div class="small">Valori usati per precompilare il prezzo in base al Paese di destinazione. Modificali quando vuoi.</div>
-    </div></div>
-    <div class="toolbar"><div class="search"><span class="search-icon" aria-hidden="true">🔍</span><input type="text" id="qfuel" placeholder="Filtra Paese…"></div>
-      <button class="btn sm" id="update-eu" type="button">🇪🇺 Aggiorna prezzi UE</button></div>
-    <div class="hint" id="eu-hint" style="margin:-10px 0 14px">"Aggiorna prezzi UE" scarica dal bollettino settimanale della Commissione Europea i prezzi correnti per i ~27 Paesi UE (non copre i Paesi extra-UE della tabella).</div>
+      <div class="small">Valori usati per precompilare il prezzo in base al Paese di destinazione UE. Modificali quando vuoi, o scarica il bollettino settimanale della Commissione Europea per aggiornarli tutti in blocco.</div>
+    </div><button class="btn sm" id="update-eu" type="button" style="flex:none;align-self:center">🇪🇺 Aggiorna prezzi UE</button></div>
+    <div class="toolbar"><div class="search"><span class="search-icon" aria-hidden="true">🔍</span><input type="text" id="qfuel" placeholder="Filtra Paese…"></div></div>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Paese</th><th>Gasolio €/l</th><th>Benzina €/l</th></tr></thead><tbody id="fuel-body"></tbody></table></div>`);
   view.appendChild(cFuel);
   const fuelBody = cFuel.querySelector('#fuel-body');
