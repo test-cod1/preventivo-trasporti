@@ -2,7 +2,7 @@ import { impostazioni } from '../data/store.js';
 import { DEFAULT_IMPOSTAZIONI } from '../calc.js';
 import { FUEL_PRICES, FUEL_DATA_DATE } from '../data/fuel-prices.js';
 import { getAccessToken } from '../lib/supabase.js';
-import { el, clear, esc, toast, fmtNum, confirmDialog } from '../lib/ui.js';
+import { el, clear, esc, toast, fmtNum } from '../lib/ui.js';
 
 // Paesi UE coperti da /api/prezzo-eu (Weekly Oil Bulletin): gli altri restano
 // modificabili solo a mano, non esiste una fonte gratuita equivalente.
@@ -85,11 +85,10 @@ export async function renderImpostazioni(view, ctx) {
   const cFuel = card(`Prezzi carburante di riferimento`, `
     <div class="banner info" style="margin:0 0 14px"><div class="bi">⛽</div><div>
       <b>Medie nazionali · aggiornate al ${esc(imp.fuelDataDate || FUEL_DATA_DATE)}</b>
-      <div class="small">Valori usati per precompilare il prezzo in base al Paese di destinazione. Modificali quando vuoi; premi "Ripristina" per tornare ai valori ufficiali di riferimento.</div>
+      <div class="small">Valori usati per precompilare il prezzo in base al Paese di destinazione. Modificali quando vuoi.</div>
     </div></div>
     <div class="toolbar"><div class="search"><span class="search-icon" aria-hidden="true">🔍</span><input type="text" id="qfuel" placeholder="Filtra Paese…"></div>
-      <button class="btn sm" id="update-eu" type="button">🇪🇺 Aggiorna prezzi UE</button>
-      <button class="btn sm" id="reset-fuel" type="button">↺ Ripristina valori ufficiali</button></div>
+      <button class="btn sm" id="update-eu" type="button">🇪🇺 Aggiorna prezzi UE</button></div>
     <div class="hint" id="eu-hint" style="margin:-10px 0 14px">"Aggiorna prezzi UE" scarica dal bollettino settimanale della Commissione Europea i prezzi correnti per i ~27 Paesi UE (non copre i Paesi extra-UE della tabella).</div>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Paese</th><th>Gasolio €/l</th><th>Benzina €/l</th></tr></thead><tbody id="fuel-body"></tbody></table></div>`);
   view.appendChild(cFuel);
@@ -112,13 +111,6 @@ export async function renderImpostazioni(view, ctx) {
   }
   drawFuel();
   cFuel.querySelector('#qfuel').addEventListener('input', drawFuel);
-  cFuel.querySelector('#reset-fuel').addEventListener('click', async () => {
-    if (await confirmDialog('Ripristinare tutti i prezzi ai valori ufficiali di riferimento?')) {
-      Object.assign(prezzi, structuredClone(FUEL_PRICES));
-      imp.fuelDataDate = FUEL_DATA_DATE;
-      drawFuel(); toast('Prezzi ripristinati', 'ok');
-    }
-  });
   cFuel.querySelector('#update-eu').addEventListener('click', async () => {
     const btn = cFuel.querySelector('#update-eu'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Aggiorno…';
